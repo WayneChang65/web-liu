@@ -1,0 +1,187 @@
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap');
+
+body {
+    font-family: 'Noto Sans TC', sans-serif;
+    background-color: #f0f2f5;
+    color: #333;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    margin: 0;
+}
+
+.container {
+    width: 90%;
+    max-width: 800px;
+    text-align: center;
+}
+
+h1 {
+    color: #0056b3;
+    font-weight: 700;
+}
+
+.subtitle {
+    color: #666;
+    margin-bottom: 2rem;
+}
+
+#ime-container {
+    position: relative;
+}
+
+#main-editor {
+    width: 100%;
+    height: 300px;
+    padding: 15px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    font-size: 1.2rem;
+    line-height: 1.6;
+    box-sizing: border-box;
+    transition: border-color 0.3s;
+    resize: vertical;
+}
+
+#main-editor:focus {
+    outline: none;
+    border-color: #0056b3;
+    box-shadow: 0 0 5px rgba(0, 86, 179, 0.3);
+}
+
+#ime-bar {
+    position: absolute;
+    bottom: 15px;
+    left: 15px;
+    background-color: rgba(255, 255, 255, 0.9);
+    border: 1px solid #eee;
+    border-radius: 4px;
+    padding: 5px 10px;
+    font-size: 1rem;
+    display: none; /* Initially hidden */
+    align-items: center;
+}
+
+#input-buffer {
+    color: #0056b3;
+    font-weight: 500;
+    margin-right: 10px;
+}
+
+#candidate-list {
+    color: #444;
+}
+
+#mode-indicator {
+    margin-bottom: 1rem;
+    font-weight: 500;
+    color: #d9534f; /* A distinct color */
+    height: 1.2em;
+}
+
+#copy-button {
+    margin-top: 1rem;
+    padding: 10px 20px;
+    font-size: 1rem;
+    font-family: inherit;
+    color: #fff;
+    background-color: #28a745;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+#copy-button:hover {
+    background-color: #218838;
+}
+
+
+.button-container {
+    margin-top: 1rem;
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+}
+
+#theme-toggle-button {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 8px 15px;
+    font-size: 0.9rem;
+    font-family: inherit;
+    color: #fff;
+    background-color: #6c757d;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+    z-index: 1000; /* Ensure it stays on top */
+}
+
+#theme-toggle-button:hover {
+    background-color: #5a6268;
+}
+
+/* Dark Mode Styles */
+body.dark-mode {
+    background-color: #121212;
+    color: #e0e0e0;
+}
+
+body.dark-mode h1 {
+    color: #bb86fc;
+}
+
+body.dark-mode .subtitle {
+    color: #a0a0a0;
+}
+
+body.dark-mode #main-editor {
+    background-color: #1e1e1e;
+    color: #e0e0e0;
+    border-color: #333;
+}
+
+body.dark-mode #main-editor:focus {
+    border-color: #bb86fc;
+    box-shadow: 0 0 5px rgba(187, 134, 252, 0.3);
+}
+
+body.dark-mode #ime-bar {
+    background-color: rgba(30, 30, 30, 0.95);
+    border-color: #444;
+}
+
+body.dark-mode #input-buffer {
+    color: #bb86fc;
+}
+
+body.dark-mode #candidate-list {
+    color: #e0e0e0;
+}
+
+body.dark-mode #mode-indicator {
+    color: #f06292;
+}
+
+body.dark-mode #copy-button {
+    background-color: #03dac6;
+    color: #121212;
+}
+
+body.dark-mode #copy-button:hover {
+    background-color: #018786;
+}
+
+body.dark-mode #theme-toggle-button {
+    background-color: #373737;
+    color: #e0e0e0;
+}
+
+body.dark-mode #theme-toggle-button:hover {
+    background-color: #555;
+}
+
