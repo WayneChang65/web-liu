@@ -5,12 +5,16 @@ const candidateListSpan = document.getElementById('candidate-list');
 const modeIndicator = document.getElementById('mode-indicator');
 const copyButton = document.getElementById('copy-button');
 const themeToggleButton = document.getElementById('theme-toggle-button');
+const immersiveToggleButton = document.getElementById('immersive-toggle-button');
+const zoomInButton = document.getElementById('zoom-in-button');
+const zoomOutButton = document.getElementById('zoom-out-button');
 
 let inputBuffer = '';
 let candidates = [];
 let currentPage = 0;
 const pageSize = 10;
 let imeMode = 'boshiamy'; // 'boshiamy' or 'english'
+let currentFontSize = 1.2; // Initial font size in rem
 
 // --- THEME LOGIC ---
 function applyTheme(theme) {
@@ -35,6 +39,42 @@ const savedTheme = localStorage.getItem('theme') || 'light';
 applyTheme(savedTheme);
 // --- END THEME LOGIC ---
 
+// --- IMMERSIVE MODE LOGIC ---
+immersiveToggleButton.addEventListener('click', () => {
+    const isImmersive = document.body.classList.toggle('immersive-mode');
+    if (isImmersive) {
+        immersiveToggleButton.textContent = '離開沉浸模式';
+    } else {
+        immersiveToggleButton.textContent = '沉浸模式';
+    }
+});
+
+// --- FONT SIZE LOGIC ---
+function updateFontSize() {
+    mainEditor.style.fontSize = `${currentFontSize}rem`;
+}
+
+zoomInButton.addEventListener('click', () => {
+    currentFontSize += 0.1;
+    updateFontSize();
+});
+
+zoomOutButton.addEventListener('click', () => {
+    if (currentFontSize > 0.5) { // Prevent font from becoming too small
+        currentFontSize -= 0.1;
+        updateFontSize();
+    }
+});
+
+// --- IME MODE LOGIC ---
+function toggleImeMode() {
+    imeMode = imeMode === 'boshiamy' ? 'english' : 'boshiamy';
+    clearImeState();
+    updateModeIndicator();
+}
+
+modeIndicator.addEventListener('click', toggleImeMode);
+
 mainEditor.addEventListener('keydown', handleKeyDown);
 
 function updateModeIndicator() {
@@ -51,9 +91,7 @@ function handleKeyDown(e) {
     if (e.ctrlKey || e.metaKey) {
         if (key.toLowerCase() === 'p') {
             e.preventDefault();
-            imeMode = imeMode === 'boshiamy' ? 'english' : 'boshiamy';
-            clearImeState();
-            updateModeIndicator();
+            toggleImeMode();
             return;
         }
         return; // Let browser handle other Ctrl/Meta shortcuts
@@ -108,7 +146,18 @@ function handleKeyDown(e) {
                 commitText(candidates[0]);
             } else {
                 e.preventDefault();
-                mainEditor.value += '\n';
+                const { selectionStart, selectionEnd } = mainEditor;
+                const originalScrollTop = mainEditor.scrollTop;
+                const isCursorAtEnd = selectionEnd === mainEditor.value.length;
+
+                mainEditor.value = mainEditor.value.slice(0, selectionStart) + '\n' + mainEditor.value.slice(selectionEnd);
+                mainEditor.selectionStart = mainEditor.selectionEnd = selectionStart + 1;
+
+                if (!isCursorAtEnd) {
+                    mainEditor.scrollTop = originalScrollTop;
+                } else {
+                    mainEditor.scrollTop = mainEditor.scrollHeight;
+                }
             }
         } else if (key.startsWith('Arrow')) {
             clearImeState();
@@ -150,8 +199,18 @@ function updateImeDisplay() {
 
 function commitText(char) {
     const { selectionStart, selectionEnd } = mainEditor;
+    const originalScrollTop = mainEditor.scrollTop;
+    const isCursorAtEnd = selectionEnd === mainEditor.value.length;
+
     mainEditor.value = mainEditor.value.slice(0, selectionStart) + char + mainEditor.value.slice(selectionEnd);
     mainEditor.selectionStart = mainEditor.selectionEnd = selectionStart + char.length;
+
+    if (!isCursorAtEnd) {
+        mainEditor.scrollTop = originalScrollTop;
+    } else {
+        mainEditor.scrollTop = mainEditor.scrollHeight;
+    }
+
     clearImeState();
     mainEditor.focus();
 }
@@ -166,6 +225,7 @@ function clearImeState() {
 // Initial setup
 mainEditor.focus();
 updateModeIndicator();
+updateFontSize(); // Set initial font size
 
 mainEditor.addEventListener('blur', () => {
     clearImeState();

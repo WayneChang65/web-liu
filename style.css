@@ -9,12 +9,14 @@ body {
     align-items: center;
     min-height: 100vh;
     margin: 0;
+    transition: background-color 0.3s, color 0.3s;
 }
 
 .container {
     width: 90%;
     max-width: 800px;
     text-align: center;
+    transition: all 0.3s ease-in-out;
 }
 
 h1 {
@@ -40,7 +42,7 @@ h1 {
     font-size: 1.2rem;
     line-height: 1.6;
     box-sizing: border-box;
-    transition: border-color 0.3s;
+    transition: border-color 0.3s, height 0.3s ease-in-out, font-size 0.2s ease-in-out;
     resize: vertical;
 }
 
@@ -78,25 +80,8 @@ h1 {
     font-weight: 500;
     color: #d9534f; /* A distinct color */
     height: 1.2em;
-}
-
-#copy-button {
-    margin-top: 1rem;
-    padding: 10px 20px;
-    font-size: 1rem;
-    font-family: inherit;
-    color: #fff;
-    background-color: #28a745;
-    border: none;
-    border-radius: 5px;
     cursor: pointer;
-    transition: background-color 0.3s;
 }
-
-#copy-button:hover {
-    background-color: #218838;
-}
-
 
 .button-container {
     margin-top: 1rem;
@@ -105,24 +90,63 @@ h1 {
     gap: 10px;
 }
 
-#theme-toggle-button {
-    position: fixed;
-    top: 20px;
-    right: 20px;
-    padding: 8px 15px;
-    font-size: 0.9rem;
+#copy-button, #zoom-in-button, #zoom-out-button {
+    padding: 10px 20px;
+    font-size: 1rem;
     font-family: inherit;
     color: #fff;
-    background-color: #6c757d;
     border: none;
     border-radius: 5px;
     cursor: pointer;
     transition: background-color 0.3s;
-    z-index: 1000; /* Ensure it stays on top */
+}
+
+#copy-button {
+    background-color: #28a745;
+}
+
+#copy-button:hover {
+    background-color: #218838;
+}
+
+#zoom-in-button, #zoom-out-button {
+    background-color: #007bff;
+}
+
+#zoom-in-button:hover, #zoom-out-button:hover {
+    background-color: #0056b3;
+}
+
+#theme-toggle-button, #immersive-toggle-button {
+    position: fixed;
+    top: 10px;
+    padding: 8px 15px;
+    font-size: 0.9rem;
+    font-family: inherit;
+    color: #fff;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+    z-index: 1000;
+}
+
+#theme-toggle-button {
+    right: 20px;
+    background-color: #6c757d;
 }
 
 #theme-toggle-button:hover {
     background-color: #5a6268;
+}
+
+#immersive-toggle-button {
+    right: 160px; /* Adjust as needed */
+    background-color: #17a2b8;
+}
+
+#immersive-toggle-button:hover {
+    background-color: #117a8b;
 }
 
 /* Dark Mode Styles */
@@ -176,6 +200,14 @@ body.dark-mode #copy-button:hover {
     background-color: #018786;
 }
 
+body.dark-mode #zoom-in-button, body.dark-mode #zoom-out-button {
+    background-color: #3700b3;
+}
+
+body.dark-mode #zoom-in-button:hover, body.dark-mode #zoom-out-button:hover {
+    background-color: #2a008c;
+}
+
 body.dark-mode #theme-toggle-button {
     background-color: #373737;
     color: #e0e0e0;
@@ -183,5 +215,37 @@ body.dark-mode #theme-toggle-button {
 
 body.dark-mode #theme-toggle-button:hover {
     background-color: #555;
+}
+
+body.dark-mode #immersive-toggle-button {
+    background-color: #20c997;
+    color: #121212;
+}
+
+body.dark-mode #immersive-toggle-button:hover {
+    background-color: #1baa80;
+}
+
+/* Immersive Mode */
+body.immersive-mode .container {
+    width: 100%;
+    max-width: 100%;
+    height: 100vh;
+    padding: 20px;
+    box-sizing: border-box;
+}
+
+body.immersive-mode #main-editor {
+    height: calc(100vh - 150px); /* Adjust based on other elements */
+}
+
+body.immersive-mode h1,
+body.immersive-mode .subtitle,
+body.immersive-mode #copy-button {
+    display: none;
+}
+
+body.immersive-mode .button-container {
+    justify-content: flex-end;
 }
 
