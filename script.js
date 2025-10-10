@@ -22,6 +22,54 @@ let currentFontSize = 1.2; // Initial font size in rem
 // --- TURNDOWN SERVICE INITIALIZATION ---
 const turndownService = new TurndownService();
 
+// --- STYLE TOGGLE LOGIC ---
+function toggleStyle(style) {
+  const selection = window.getSelection();
+  if (!selection.rangeCount) return;
+
+  const range = selection.getRangeAt(0);
+  const selectedText = range.toString();
+
+  if (!selectedText) return; // Don't apply styles to empty selections
+
+  const parentElement =
+    range.commonAncestorContainer.nodeType === 1
+      ? range.commonAncestorContainer
+      : range.commonAncestorContainer.parentElement;
+
+  const tagMap = {
+    bold: "STRONG",
+    italic: "EM",
+    underline: "U",
+  };
+  const tagName = tagMap[style];
+  const isAlreadyStyled = parentElement.closest(tagName);
+
+  if (isAlreadyStyled) {
+    // This is a simplification: it unwraps the entire styled element.
+    // A more robust solution would split the nodes, but this avoids execCommand.
+    const text = document.createTextNode(isAlreadyStyled.textContent);
+    isAlreadyStyled.parentNode.replaceChild(text, isAlreadyStyled);
+    // Restore selection around the new text node
+    range.selectNodeContents(text);
+    selection.removeAllRanges();
+    selection.addRange(range);
+  } else {
+    const newNode = document.createElement(tagName);
+    try {
+      // surroundContents is the ideal way to wrap a selection
+      range.surroundContents(newNode);
+    } catch (e) {
+      // If selection spans across different nodes, surroundContents fails.
+      // As a fallback, we apply the style via a less precise method.
+      console.warn("surroundContents failed, falling back.", e);
+      const fragment = range.extractContents();
+      newNode.appendChild(fragment);
+      range.insertNode(newNode);
+    }
+  }
+}
+
 // --- THEME LOGIC ---
 function applyTheme(theme) {
   if (theme === "dark") {
@@ -98,10 +146,10 @@ function handleKeyDown(e) {
     // Formatting shortcuts
     if (["b", "i", "u"].includes(key.toLowerCase())) {
       e.preventDefault();
-      const command = { b: "bold", i: "italic", u: "underline" }[
+      const style = { b: "bold", i: "italic", u: "underline" }[
         key.toLowerCase()
       ];
-      document.execCommand(command, false, null);
+      toggleStyle(style);
       return;
     }
     // IME mode toggle
@@ -141,7 +189,17 @@ function handleKeyDown(e) {
         updateImeDisplay();
       } else {
         // If buffer is empty, perform a regular backspace
-        document.execCommand("delete", false, null);
+        const selection = window.getSelection();
+        if (!selection.rangeCount) return;
+        const range = selection.getRangeAt(0);
+        if (range.collapsed) {
+          // If nothing is selected, expand the range to the previous character
+          range.setStart(
+            range.startContainer,
+            Math.max(0, range.startOffset - 1)
+          );
+        }
+        range.deleteContents();
       }
     } else if (key === " " || key === "Spacebar") {
       e.preventDefault();
@@ -178,7 +236,24 @@ function handleKeyDown(e) {
       } else {
         // If buffer is empty, perform a regular Enter
         e.preventDefault();
-        document.execCommand("insertLineBreak");
+        const selection = window.getSelection();
+        if (!selection.rangeCount) return;
+        const range = selection.getRangeAt(0);
+        range.deleteContents();
+
+        const br = document.createElement("br");
+        range.insertNode(br);
+
+        // Insert a zero-width space to act as a cursor anchor
+        const zeroWidthSpace = document.createTextNode("\u200B");
+        range.setStartAfter(br);
+        range.insertNode(zeroWidthSpace);
+
+        // Place cursor right at the beginning of the zero-width space node
+        range.setStart(zeroWidthSpace, 0);
+        range.collapse(true);
+        selection.removeAllRanges();
+        selection.addRange(range);
 
         // Use the same robust scrolling logic as the paste handler
         // to ensure the caret is always visible after a newline.
@@ -241,8 +316,21 @@ function updateImeDisplay() {
 }
 
 function commitText(char) {
-  // Use execCommand to insert text, which works for contenteditable divs
-  document.execCommand("insertText", false, char);
+  const selection = window.getSelection();
+  if (!selection.rangeCount) return;
+
+  const range = selection.getRangeAt(0);
+  range.deleteContents(); // Delete selected text if any
+
+  const textNode = document.createTextNode(char);
+  range.insertNode(textNode);
+
+  // Move cursor after the inserted text
+  range.setStartAfter(textNode);
+  range.collapse(true);
+  selection.removeAllRanges();
+  selection.addRange(range);
+
   clearImeState();
   mainEditor.focus();
 }
@@ -300,8 +388,18 @@ mainEditor.addEventListener("paste", (e) => {
   const text = (e.clipboardData || window.clipboardData).getData("text/plain");
 
   // Insert the sanitized plain text into the editor
+  const selection = window.getSelection();
+  if (!selection.rangeCount) return;
+  const range = selection.getRangeAt(0);
+  range.deleteContents();
+  const textNode = document.createTextNode(text);
+  range.insertNode(textNode);
 
-  document.execCommand("insertText", false, text);
+  // Move cursor to the end of pasted text
+  range.setStartAfter(textNode);
+  range.collapse(true);
+  selection.removeAllRanges();
+  selection.addRange(range);
 
   // After pasting, use a hybrid approach to ensure the caret is visible.
 
