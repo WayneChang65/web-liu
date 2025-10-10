@@ -58,6 +58,7 @@ immersiveToggleButton.addEventListener("click", () => {
 // --- FONT SIZE LOGIC ---
 function updateFontSize() {
   mainEditor.style.fontSize = `${currentFontSize}rem`;
+  updateModeIndicator();
 }
 
 zoomInButton.addEventListener("click", () => {
@@ -85,11 +86,9 @@ modeIndicator.addEventListener("click", toggleImeMode);
 mainEditor.addEventListener("keydown", handleKeyDown);
 
 function updateModeIndicator() {
-  if (imeMode === "boshiamy") {
-    modeIndicator.textContent = "目前為：嘸蝦米模式 (Ctrl+p 切換)";
-  } else {
-    modeIndicator.textContent = "目前為：英數模式 (Ctrl+p 切換)";
-  }
+  const modeText = imeMode === "boshiamy" ? "嘸蝦米模式" : "英數模式";
+  const fontSizeDisplay = Math.round(currentFontSize * 10);
+  modeIndicator.textContent = `目前為：${modeText} (Ctrl+p 切換), 字型大小：${fontSizeDisplay}`;
 }
 
 function handleKeyDown(e) {
