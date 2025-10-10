@@ -98,7 +98,7 @@ h1 {
     gap: 10px;
 }
 
-#copy-button, #zoom-in-button, #zoom-out-button {
+#copy-button, #zoom-in-button, #zoom-out-button, #save-md-button {
     padding: 10px 20px;
     font-size: 1rem;
     font-family: inherit;
@@ -108,6 +108,15 @@ h1 {
     cursor: pointer;
     transition: background-color 0.3s;
 }
+
+#save-md-button {
+    background-color: #ffc107; /* A distinct color */
+}
+
+#save-md-button:hover {
+    background-color: #e0a800;
+}
+
 
 #copy-button {
     background-color: #28a745;

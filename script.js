@@ -8,6 +8,7 @@ const themeToggleButton = document.getElementById('theme-toggle-button');
 const immersiveToggleButton = document.getElementById('immersive-toggle-button');
 const zoomInButton = document.getElementById('zoom-in-button');
 const zoomOutButton = document.getElementById('zoom-out-button');
+const saveMdButton = document.getElementById('save-md-button');
 
 let inputBuffer = '';
 let candidates = [];
@@ -15,6 +16,9 @@ let currentPage = 0;
 const pageSize = 10;
 let imeMode = 'boshiamy'; // 'boshiamy' or 'english'
 let currentFontSize = 1.2; // Initial font size in rem
+
+// --- TURNDOWN SERVICE INITIALIZATION ---
+const turndownService = new TurndownService();
 
 // --- THEME LOGIC ---
 function applyTheme(theme) {
@@ -397,12 +401,120 @@ mainEditor.addEventListener('paste', (e) => {
 
 
 
-            }
+                    }
 
 
 
-        });
+                });
 
 
 
-    });
+            });
+
+
+
+            
+
+
+
+            // --- SAVE AS MARKDOWN LOGIC ---
+
+
+
+            saveMdButton.addEventListener('click', () => {
+
+
+
+                const content = mainEditor.innerHTML;
+
+
+
+            
+
+
+
+                if (content) {
+
+
+
+                    // Convert the HTML content from the editor to Markdown
+
+
+
+                    const markdown = turndownService.turndown(content);
+
+
+
+            
+
+
+
+                    // Create a Blob from the Markdown string
+
+
+
+                    const blob = new Blob([markdown], { type: 'text/markdown;charset=utf-t' });
+
+
+
+            
+
+
+
+                    // Create a temporary link element to trigger the download
+
+
+
+                    const link = document.createElement('a');
+
+
+
+                    link.href = URL.createObjectURL(blob);
+
+
+
+                    link.download = 'document.md';
+
+
+
+            
+
+
+
+                    // Append to the document, click, and then remove
+
+
+
+                    document.body.appendChild(link);
+
+
+
+                    link.click();
+
+
+
+                    document.body.removeChild(link);
+
+
+
+            
+
+
+
+                    // Clean up the object URL
+
+
+
+                    URL.revokeObjectURL(link.href);
+
+
+
+                }
+
+
+
+            });
+
+
+
+            
