@@ -98,7 +98,7 @@ function handleKeyDown(e) {
     }
 
     if (imeMode === 'boshiamy') {
-        const validChars = /^[a-z,.'\[\]]$/;
+        const validChars = /^[a-z,.'\[\]v]$/;
 
         if (validChars.test(key)) {
             e.preventDefault();
@@ -130,8 +130,20 @@ function handleKeyDown(e) {
                 }
             }
         } else if (key === ' ' || key === 'Spacebar') {
+            e.preventDefault();
+
+            if (inputBuffer.length > 1 && inputBuffer.endsWith('v')) {
+                const root = inputBuffer.slice(0, -1);
+                const rootCandidates = boshiamyData[root];
+                if (rootCandidates && rootCandidates.length > 1) {
+                    commitText(rootCandidates.split('')[1]);
+                } else {
+                    clearImeState();
+                }
+                return;
+            }
+
             if (inputBuffer.length > 0 && candidates.length > 0) {
-                e.preventDefault();
                 const totalPages = Math.ceil(candidates.length / pageSize);
                 if (totalPages > 1) {
                     currentPage = (currentPage + 1) % totalPages;
