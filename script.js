@@ -48,12 +48,15 @@ function updateModeIndicator() {
 function handleKeyDown(e) {
     const key = e.key;
 
-    if (e.ctrlKey && key.toLowerCase() === 'p') {
-        e.preventDefault();
-        imeMode = imeMode === 'boshiamy' ? 'english' : 'boshiamy';
-        clearImeState();
-        updateModeIndicator();
-        return;
+    if (e.ctrlKey || e.metaKey) {
+        if (key.toLowerCase() === 'p') {
+            e.preventDefault();
+            imeMode = imeMode === 'boshiamy' ? 'english' : 'boshiamy';
+            clearImeState();
+            updateModeIndicator();
+            return;
+        }
+        return; // Let browser handle other Ctrl/Meta shortcuts
     }
 
     if (imeMode === 'boshiamy') {
