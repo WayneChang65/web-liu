@@ -89,12 +89,21 @@ function handleKeyDown(e) {
     const key = e.key;
 
     if (e.ctrlKey || e.metaKey) {
+        // Formatting shortcuts
+        if (['b', 'i', 'u'].includes(key.toLowerCase())) {
+            e.preventDefault();
+            const command = { b: 'bold', i: 'italic', u: 'underline' }[key.toLowerCase()];
+            document.execCommand(command, false, null);
+            return;
+        }
+        // IME mode toggle
         if (key.toLowerCase() === 'p') {
             e.preventDefault();
             toggleImeMode();
             return;
         }
-        return; // Let browser handle other Ctrl/Meta shortcuts
+        // Allow other Ctrl/Meta shortcuts like Ctrl+A, Ctrl+C, etc.
+        return;
     }
 
     if (imeMode === 'boshiamy') {
@@ -123,53 +132,65 @@ function handleKeyDown(e) {
                 currentPage = 0;
                 updateImeDisplay();
             } else {
-                const { selectionStart, selectionEnd } = mainEditor;
-                if (selectionStart > 0) {
-                    mainEditor.value = mainEditor.value.slice(0, selectionStart - 1) + mainEditor.value.slice(selectionEnd);
-                    mainEditor.selectionStart = mainEditor.selectionEnd = selectionStart - 1;
-                }
+                // If buffer is empty, perform a regular backspace
+                document.execCommand('delete', false, null);
             }
         } else if (key === ' ' || key === 'Spacebar') {
             e.preventDefault();
 
-            if (inputBuffer.length > 1 && inputBuffer.endsWith('v')) {
-                const root = inputBuffer.slice(0, -1);
-                const rootCandidates = boshiamyData[root];
-                if (rootCandidates && rootCandidates.length > 1) {
-                    commitText(rootCandidates.split('')[1]);
-                } else {
-                    clearImeState();
-                }
-                return;
-            }
-
-            if (inputBuffer.length > 0 && candidates.length > 0) {
-                const totalPages = Math.ceil(candidates.length / pageSize);
-                if (totalPages > 1) {
-                    currentPage = (currentPage + 1) % totalPages;
-                    updateImeDisplay();
-                } else {
-                    commitText(candidates[0]);
-                }
-            }
-        } else if (key === 'Enter') {
+                    if (inputBuffer.length > 1 && inputBuffer.endsWith('v')) {
+                        const root = inputBuffer.slice(0, -1);
+                        const rootHasCandidates = boshiamyData.hasOwnProperty(root) && boshiamyData[root].length > 1;
+                        const bufferHasCandidates = boshiamyData.hasOwnProperty(inputBuffer);
+            
+                        // Only treat 'v' as a special selector if the root code exists
+                        // and the full code (with 'v') does NOT exist as a valid code.
+                        if (rootHasCandidates && !bufferHasCandidates) {
+                            const rootCandidates = boshiamyData[root];
+                            commitText(rootCandidates.split('')[1]); // Commit 2nd candidate of the root
+                            return;
+                        }
+                        // Otherwise, fall through to treat the buffer (e.g., 'lonv') as a normal code.
+                    }
+            
+                    if (inputBuffer.length > 0 && candidates.length > 0) {
+                        const totalPages = Math.ceil(candidates.length / pageSize);
+                        if (totalPages > 1) {
+                            currentPage = (currentPage + 1) % totalPages;
+                            updateImeDisplay();
+                        } else {
+                            commitText(candidates[0]);
+                        }
+                    }        } else if (key === 'Enter') {
             if (inputBuffer.length > 0 && candidates.length > 0) {
                 e.preventDefault();
                 commitText(candidates[0]);
             } else {
+                // If buffer is empty, perform a regular Enter
                 e.preventDefault();
-                const { selectionStart, selectionEnd } = mainEditor;
-                const originalScrollTop = mainEditor.scrollTop;
-                const isCursorAtEnd = selectionEnd === mainEditor.value.length;
+                document.execCommand('insertLineBreak');
 
-                mainEditor.value = mainEditor.value.slice(0, selectionStart) + '\n' + mainEditor.value.slice(selectionEnd);
-                mainEditor.selectionStart = mainEditor.selectionEnd = selectionStart + 1;
+                // Use the same robust scrolling logic as the paste handler
+                // to ensure the caret is always visible after a newline.
+                requestAnimationFrame(() => {
+                    const selection = window.getSelection();
+                    if (!selection.rangeCount) return;
 
-                if (!isCursorAtEnd) {
-                    mainEditor.scrollTop = originalScrollTop;
-                } else {
-                    mainEditor.scrollTop = mainEditor.scrollHeight;
-                }
+                    const range = selection.getRangeAt(0);
+                    const tempSpan = document.createElement('span');
+                    range.insertNode(tempSpan);
+                    const spanRect = tempSpan.getBoundingClientRect();
+                    tempSpan.parentNode.removeChild(tempSpan);
+
+                    const editorRect = mainEditor.getBoundingClientRect();
+                    const editorStyle = window.getComputedStyle(mainEditor);
+                    const editorPaddingBottom = parseFloat(editorStyle.paddingBottom);
+                    const visibleEditorBottom = editorRect.bottom - editorPaddingBottom;
+
+                    if (spanRect.bottom > visibleEditorBottom) {
+                        mainEditor.scrollTop += (spanRect.bottom - visibleEditorBottom);
+                    }
+                });
             }
         } else if (key.startsWith('Arrow')) {
             clearImeState();
@@ -210,19 +231,8 @@ function updateImeDisplay() {
 }
 
 function commitText(char) {
-    const { selectionStart, selectionEnd } = mainEditor;
-    const originalScrollTop = mainEditor.scrollTop;
-    const isCursorAtEnd = selectionEnd === mainEditor.value.length;
-
-    mainEditor.value = mainEditor.value.slice(0, selectionStart) + char + mainEditor.value.slice(selectionEnd);
-    mainEditor.selectionStart = mainEditor.selectionEnd = selectionStart + char.length;
-
-    if (!isCursorAtEnd) {
-        mainEditor.scrollTop = originalScrollTop;
-    } else {
-        mainEditor.scrollTop = mainEditor.scrollHeight;
-    }
-
+    // Use execCommand to insert text, which works for contenteditable divs
+    document.execCommand('insertText', false, char);
     clearImeState();
     mainEditor.focus();
 }
@@ -244,16 +254,155 @@ mainEditor.addEventListener('blur', () => {
 });
 
 copyButton.addEventListener('click', () => {
-    const textToCopy = mainEditor.value;
+
+    // Use innerText for contenteditable div to get plain text
+
+    const textToCopy = mainEditor.innerText;
+
     if (textToCopy) {
+
         navigator.clipboard.writeText(textToCopy).then(() => {
+
             const originalText = copyButton.textContent;
+
             copyButton.textContent = '已複製！';
+
             setTimeout(() => {
+
                 copyButton.textContent = originalText;
+
             }, 2000);
+
         }).catch(err => {
+
             console.error('無法複製文字: ', err);
+
         });
+
     }
+
 });
+
+
+
+// --- PASTE HANDLING ---
+
+// Intercept paste events to sanitize content to plain text
+
+mainEditor.addEventListener('paste', (e) => {
+
+    // Prevent the default paste action which might insert rich text
+
+    e.preventDefault();
+
+
+
+    // Get the plain text from the clipboard
+
+    const text = (e.clipboardData || window.clipboardData).getData('text/plain');
+
+
+
+    // Insert the sanitized plain text into the editor
+
+    document.execCommand('insertText', false, text);
+
+
+
+        // After pasting, use a hybrid approach to ensure the caret is visible.
+
+
+
+        requestAnimationFrame(() => {
+
+
+
+            const selection = window.getSelection();
+
+
+
+            if (!selection.rangeCount) return;
+
+
+
+    
+
+
+
+            const range = selection.getRangeAt(0);
+
+
+
+            
+
+
+
+            // 1. Insert a temporary element to get a reliable position.
+
+
+
+            const tempSpan = document.createElement('span');
+
+
+
+            range.insertNode(tempSpan);
+
+
+
+            const spanRect = tempSpan.getBoundingClientRect();
+
+
+
+            tempSpan.parentNode.removeChild(tempSpan); // Clean up immediately
+
+
+
+    
+
+
+
+            // 2. Perform the precise calculation using the reliable coordinates.
+
+
+
+            const editorRect = mainEditor.getBoundingClientRect();
+
+
+
+            const editorStyle = window.getComputedStyle(mainEditor);
+
+
+
+            const editorPaddingBottom = parseFloat(editorStyle.paddingBottom);
+
+
+
+            const visibleEditorBottom = editorRect.bottom - editorPaddingBottom;
+
+
+
+    
+
+
+
+            // 3. Scroll by the calculated amount if needed.
+
+
+
+            if (spanRect.bottom > visibleEditorBottom) {
+
+
+
+                mainEditor.scrollTop += (spanRect.bottom - visibleEditorBottom);
+
+
+
+            }
+
+
+
+        });
+
+
+
+    });

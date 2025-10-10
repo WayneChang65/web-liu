@@ -43,7 +43,15 @@ h1 {
     line-height: 1.6;
     box-sizing: border-box;
     transition: border-color 0.3s, height 0.3s ease-in-out, font-size 0.2s ease-in-out;
-    resize: vertical;
+    text-align: left; /* Align text to the left */
+    overflow-y: auto; /* Ensure scrolling */
+}
+
+/* Replicate placeholder for contenteditable div */
+#main-editor:empty::before {
+    content: attr(placeholder);
+    color: #999;
+    pointer-events: none;
 }
 
 #main-editor:focus {
