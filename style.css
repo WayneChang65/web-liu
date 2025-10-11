@@ -367,3 +367,9 @@ body.dark-mode .mode-text.english {
   background-color: #4b5563; /* Medium-dark grey */
   color: #f3f4f6; /* Off-white */
 }
+
+#restore-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none; /* Prevents hover effects */
+}

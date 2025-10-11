@@ -409,6 +409,7 @@ function clearImeState() {
 mainEditor.focus();
 updateModeIndicator();
 updateFontSize(); // Set initial font size
+updateRestoreButtonState(); // Set initial button state
 
 mainEditor.addEventListener("blur", () => {
   clearImeState();
@@ -538,20 +539,45 @@ saveMdButton.addEventListener("click", () => {
 });
 
 // --- AUTOSAVE AND RESTORE LOGIC ---
+function updateRestoreButtonState() {
+  const isEditorEmpty = mainEditor.innerHTML.trim() === '';
+  const hasSavedContent = !!localStorage.getItem('boshiamy-editor-content');
+  restoreButton.disabled = !isEditorEmpty || !hasSavedContent;
+}
+
 const autoSaveChanges = () => {
   const content = mainEditor.innerHTML;
   // Use innerHTML to preserve formatting
   localStorage.setItem("boshiamy-editor-content", content);
+  // After saving, the state of hasSavedContent might have changed, so update button
+  if (content) {
+    updateRestoreButtonState();
+  }
 };
 
 // Debounce the save function to avoid excessive writes
 const debouncedSave = debounce(autoSaveChanges, 500);
-mainEditor.addEventListener("input", debouncedSave);
+
+mainEditor.addEventListener("input", () => {
+  // Update button state immediately on input
+  updateRestoreButtonState();
+  // Debounce the actual save operation
+  debouncedSave();
+});
+
+
+// Ensure content is saved when the user leaves the page
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "hidden") {
+    autoSaveChanges();
+  }
+});
 
 restoreButton.addEventListener("click", () => {
   const savedContent = localStorage.getItem("boshiamy-editor-content");
   if (savedContent) {
     mainEditor.innerHTML = savedContent;
+    updateRestoreButtonState(); // Disable button after restoring
 
     // Provide user feedback
     const originalText = restoreButton.textContent;
