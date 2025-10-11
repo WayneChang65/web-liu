@@ -295,8 +295,46 @@ body.immersive-mode #copy-button {
 }
 
 body.immersive-mode .button-container {
-    justify-content: flex-end;
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    margin-top: 0;
+    z-index: 1001;
+    align-items: flex-end;
+    flex-direction: column;
+    gap: 8px;
 }
+
+#button-toggle {
+    display: none; /* Hidden by default */
+    cursor: pointer;
+    padding: 5px 10px;
+    background-color: rgba(108, 117, 125, 0.8);
+    color: white;
+    border-radius: 50%;
+    font-weight: bold;
+    line-height: 1;
+}
+
+body.immersive-mode #button-toggle {
+    display: block; /* Visible in immersive mode */
+}
+
+body.immersive-mode .button-container > button {
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(10px);
+    transition: opacity 0.3s, visibility 0.3s, transform 0.3s;
+    pointer-events: none;
+}
+
+body.immersive-mode .button-container.expanded > button {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+    pointer-events: auto;
+}
+
 
 /* -- Highlight for IME mode text -- */
 .mode-text {

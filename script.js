@@ -12,6 +12,8 @@ const zoomInButton = document.getElementById("zoom-in-button");
 const zoomOutButton = document.getElementById("zoom-out-button");
 const saveMdButton = document.getElementById("save-md-button");
 const restoreButton = document.getElementById("restore-button");
+const buttonContainer = document.querySelector(".button-container");
+const buttonToggle = document.getElementById("button-toggle");
 
 let inputBuffer = "";
 let candidates = [];
@@ -19,6 +21,7 @@ let currentPage = 0;
 const pageSize = 10;
 let imeMode = "boshiamy"; // 'boshiamy' or 'english'
 let currentFontSize = 1.2; // Initial font size in rem
+let inactivityTimer;
 
 // --- DEBOUNCE UTILITY ---
 function debounce(func, delay) {
@@ -104,12 +107,54 @@ applyTheme(savedTheme);
 // --- END THEME LOGIC ---
 
 // --- IMMERSIVE MODE LOGIC ---
+const collapseImmersiveButtons = () => {
+  if (document.body.classList.contains("immersive-mode")) {
+    buttonContainer.classList.remove("expanded");
+  }
+};
+
+const resetInactivityTimer = () => {
+  clearTimeout(inactivityTimer);
+  if (document.body.classList.contains("immersive-mode")) {
+    inactivityTimer = setTimeout(collapseImmersiveButtons, 3000);
+  }
+};
+
+const activityListeners = ["mousemove", "keydown", "scroll"];
+
+const addActivityListeners = () => {
+  activityListeners.forEach((event) => {
+    window.addEventListener(event, resetInactivityTimer);
+  });
+};
+
+const removeActivityListeners = () => {
+  activityListeners.forEach((event) => {
+    window.removeEventListener(event, resetInactivityTimer);
+  });
+};
+
 immersiveToggleButton.addEventListener("click", () => {
   const isImmersive = document.body.classList.toggle("immersive-mode");
   if (isImmersive) {
     immersiveToggleButton.textContent = "離開沉浸模式";
+    addActivityListeners();
+    resetInactivityTimer();
   } else {
     immersiveToggleButton.textContent = "沉浸模式";
+    buttonContainer.classList.remove("expanded");
+    clearTimeout(inactivityTimer);
+    removeActivityListeners();
+  }
+});
+
+buttonToggle.addEventListener("click", () => {
+  buttonContainer.classList.toggle("expanded");
+  // If user manually expands, clear the timer. It will restart on next activity.
+  if (buttonContainer.classList.contains("expanded")) {
+    clearTimeout(inactivityTimer);
+  } else {
+    resetInactivityTimer();
   }
 });
 
