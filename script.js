@@ -290,6 +290,9 @@ function handleKeyDown(e) {
         } else {
           commitText(candidates[0]);
         }
+      } else {
+        // If there are no candidates, clear the buffer so the user can re-type.
+        clearImeState();
       }
       // If there's an input buffer but no candidates, space does nothing.
     } else if (key === "Enter") {
