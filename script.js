@@ -83,6 +83,57 @@ function toggleStyle(style) {
   }
 }
 
+function changeSelectionFontSize(direction) {
+  const selection = window.getSelection();
+  if (!selection.rangeCount || selection.isCollapsed) return;
+
+  const range = selection.getRangeAt(0);
+  const container = range.commonAncestorContainer;
+
+  // Find if the selection is already inside one of our sizing spans
+  const element = container.nodeType === Node.ELEMENT_NODE ? container : container.parentElement;
+  const existingSpan = element.closest('span[data-font-sized="true"]');
+
+  if (existingSpan) {
+    // Case 1: We are inside a span we created. Modify it.
+    const currentFontSize = parseFloat(window.getComputedStyle(existingSpan).fontSize);
+    const newSize = direction === 'increase' ? currentFontSize + 1 : currentFontSize - 1;
+    
+    if (newSize > 0) {
+        existingSpan.style.fontSize = `${newSize}px`;
+    }
+    // After modifying, re-select the original range to allow consecutive operations.
+    selection.removeAllRanges();
+    selection.addRange(range);
+
+  } else {
+    // Case 2: It's plain text or text styled in some other way. Wrap it in a new span.
+    const parentForStyle = container.nodeType === Node.TEXT_NODE ? container.parentElement : container;
+    const computedStyle = window.getComputedStyle(parentForStyle);
+    const currentFontSize = parseFloat(computedStyle.fontSize);
+    const newSize = direction === 'increase' ? currentFontSize + 1 : currentFontSize - 1;
+
+    if (newSize > 0) {
+        const newSpan = document.createElement('span');
+        newSpan.dataset.fontSized = 'true'; // Add the marker attribute
+        newSpan.style.fontSize = `${newSize}px`;
+        try {
+            const fragment = range.extractContents();
+            newSpan.appendChild(fragment);
+            range.insertNode(newSpan);
+
+            // Reselect the modified text
+            selection.removeAllRanges();
+            const newRange = document.createRange();
+            newRange.selectNodeContents(newSpan);
+            selection.addRange(newRange);
+        } catch (e) { 
+            console.error("Could not apply font size change:", e);
+        }
+    }
+  }
+}
+
 // --- THEME LOGIC ---
 function applyTheme(theme) {
   if (theme === "dark") {
@@ -214,6 +265,19 @@ function handleKeyDown(e) {
       toggleImeMode();
       return;
     }
+
+    // Font size shortcuts
+    if (key === '[' || (e.shiftKey && key === '<') || key === '9') { // Ctrl+[ or Ctrl+Shift+< or Ctrl+9
+      e.preventDefault();
+      changeSelectionFontSize('decrease');
+      return;
+    }
+    if (key === ']' || (e.shiftKey && key === '>') || key === '0') { // Ctrl+] or Ctrl+Shift+> or Ctrl+0
+      e.preventDefault();
+      changeSelectionFontSize('increase');
+      return;
+    }
+
     // Allow other Ctrl/Meta shortcuts like Ctrl+A, Ctrl+C, etc.
     return;
   }
