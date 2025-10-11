@@ -109,6 +109,11 @@ function toggleStyle(style) {
       newNode.appendChild(fragment);
       range.insertNode(newNode);
     }
+    // After styling, re-select the content within the new node to ensure the next toggle check works.
+    selection.removeAllRanges();
+    const newRange = document.createRange();
+    newRange.selectNodeContents(newNode);
+    selection.addRange(newRange);
   }
 }
 
@@ -381,50 +386,8 @@ function handleKeyDown(e) {
       if (inputBuffer.length > 0 && candidates.length > 0) {
         e.preventDefault();
         commitText(candidates[0]);
-      } else {
-        // If buffer is empty, perform a regular Enter
-        e.preventDefault();
-        const selection = window.getSelection();
-        if (!selection.rangeCount) return;
-        const range = selection.getRangeAt(0);
-        range.deleteContents();
-
-        const br = document.createElement("br");
-        range.insertNode(br);
-
-        // Insert a zero-width space to act as a cursor anchor
-        const zeroWidthSpace = document.createTextNode("\u200B");
-        range.setStartAfter(br);
-        range.insertNode(zeroWidthSpace);
-
-        // Place cursor right at the beginning of the zero-width space node
-        range.setStart(zeroWidthSpace, 0);
-        range.collapse(true);
-        selection.removeAllRanges();
-        selection.addRange(range);
-
-        // Use the same robust scrolling logic as the paste handler
-        // to ensure the caret is always visible after a newline.
-        requestAnimationFrame(() => {
-          const selection = window.getSelection();
-          if (!selection.rangeCount) return;
-
-          const range = selection.getRangeAt(0);
-          const tempSpan = document.createElement("span");
-          range.insertNode(tempSpan);
-          const spanRect = tempSpan.getBoundingClientRect();
-          tempSpan.parentNode.removeChild(tempSpan);
-
-          const editorRect = mainEditor.getBoundingClientRect();
-          const editorStyle = window.getComputedStyle(mainEditor);
-          const editorPaddingBottom = parseFloat(editorStyle.paddingBottom);
-          const visibleEditorBottom = editorRect.bottom - editorPaddingBottom;
-
-          if (spanRect.bottom > visibleEditorBottom) {
-            mainEditor.scrollTop += spanRect.bottom - visibleEditorBottom;
-          }
-        });
       }
+      // If buffer is empty, do nothing and let the browser handle the default Enter action.
     } else if (key.startsWith("Arrow")) {
       clearImeState();
     }
