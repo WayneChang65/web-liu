@@ -137,7 +137,7 @@ h1 {
     background-color: #0056b3;
 }
 
-#theme-toggle-button, #immersive-toggle-button, #restore-button {
+#theme-toggle-button, #immersive-toggle-button, #restore-button, #description-button {
     position: fixed;
     top: 10px;
     padding: 8px 15px;
@@ -149,6 +149,16 @@ h1 {
     cursor: pointer;
     transition: background-color 0.3s;
     z-index: 1000;
+    text-decoration: none; /* For <a> tags */
+}
+
+#description-button {
+    left: 130px; /* Position next to restore button */
+    background-color: #5a7d9a; /* A subtle slate blue */
+}
+
+#description-button:hover {
+    background-color: #4a6982;
 }
 
 #theme-toggle-button {
@@ -247,6 +257,14 @@ body.dark-mode #restore-button {
 
 body.dark-mode #restore-button:hover {
     background-color: #40916c;
+}
+
+body.dark-mode #description-button {
+    background-color: #4f5b66; /* A darker gray for dark mode */
+}
+
+body.dark-mode #description-button:hover {
+    background-color: #65737e;
 }
 
 body.dark-mode #zoom-in-button, body.dark-mode #zoom-out-button {

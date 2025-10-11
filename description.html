@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>功能說明 - 線上嘸蝦米</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        /* Add some specific styles for the description page */
+        body {
+            align-items: flex-start;
+        }
+        .container {
+            text-align: left;
+            padding-top: 2rem;
+            padding-bottom: 2rem;
+        }
+        .back-link {
+            display: inline-block;
+            margin-bottom: 2rem;
+            padding: 10px 20px;
+            background-color: #6c757d;
+            color: #fff;
+            text-decoration: none;
+            border-radius: 5px;
+            transition: background-color 0.3s;
+        }
+        .back-link:hover {
+            background-color: #5a6268;
+        }
+        h3 {
+            margin-top: 1.5rem;
+            color: #0056b3;
+        }
+        ul {
+            padding-left: 20px;
+        }
+        body.dark-mode .back-link {
+            background-color: #373737;
+        }
+        body.dark-mode .back-link:hover {
+            background-color: #555;
+        }
+        body.dark-mode h3 {
+            color: #bb86fc;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="index.html?action=restore" class="back-link">&larr; 返回編輯器</a>
+        <h1>功能說明</h1>
+        
+        <h3>快捷鍵</h3>
+        <ul>
+            <li><strong>切換輸入法:</strong> Ctrl + p</li>
+            <li><strong>粗體:</strong> Ctrl + b</li>
+            <li><strong>斜體:</strong> Ctrl + i</li>
+            <li><strong>底線:</strong> Ctrl + u</li>
+            <li><strong>放大選取文字:</strong> Ctrl + ], Ctrl + Shift + &gt;, 或 Ctrl + 0</li>
+            <li><strong>縮小選取文字:</strong> Ctrl + [, Ctrl + Shift + &lt;, 或 Ctrl + 9</li>
+        </ul>
+
+        <h3>匯出功能</h3>
+        <p>點擊「匯出」按鈕可以將編輯區的內容轉換為 Markdown 格式並下載。此功能會保留以下格式：</p>
+        <ul>
+            <li>粗體</li>
+            <li>斜體</li>
+            <li>底線 (以 HTML <code>&lt;u&gt;</code> 標籤保留)</li>
+            <li>自訂字級大小 (以 HTML <code>&lt;span&gt;</code> 標籤保留)</li>
+        </ul>
+
+        <h3>暫存功能</h3>
+        <ul>
+            <li><strong>自動儲存:</strong> 您輸入的內容會自動儲存於瀏覽器中。</li>
+            <li><strong>讀回暫存:</strong> 當編輯區為空時，可以點擊「讀回暫存」按鈕來恢復上次的編輯內容。</li>
+        </ul>
+    </div>
+    <script>
+        // Apply dark mode if it was set on the main page
+        const savedTheme = localStorage.getItem("theme") || "light";
+        if (savedTheme === "dark") {
+            document.body.classList.add("dark-mode");
+        }
+    </script>
+</body>
+</html>

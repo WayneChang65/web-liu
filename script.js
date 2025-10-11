@@ -329,27 +329,16 @@ function handleKeyDown(e) {
         commitText(candidates[realIndex]);
       }
     } else if (key === "Backspace") {
-      e.preventDefault();
       if (inputBuffer.length > 0) {
+        // If the IME buffer has content, we handle it and prevent default browser action.
+        e.preventDefault();
         inputBuffer = inputBuffer.slice(0, -1);
         const results = boshiamyData[inputBuffer];
         candidates = results ? results.split("") : [];
         currentPage = 0;
         updateImeDisplay();
-      } else {
-        // If buffer is empty, perform a regular backspace
-        const selection = window.getSelection();
-        if (!selection.rangeCount) return;
-        const range = selection.getRangeAt(0);
-        if (range.collapsed) {
-          // If nothing is selected, expand the range to the previous character
-          range.setStart(
-            range.startContainer,
-            Math.max(0, range.startOffset - 1)
-          );
-        }
-        range.deleteContents();
       }
+      // If buffer is empty, do nothing and let the browser handle the default backspace.
     } else if (key === " " || key === "Spacebar") {
       // If buffer is empty, do nothing and let the default space character be inserted.
       if (inputBuffer.length === 0) {
@@ -501,11 +490,31 @@ function clearImeState() {
   imeBar.style.display = "none";
 }
 
+// Function to restore content from localStorage
+function autoRestore() {
+  const savedContent = localStorage.getItem("boshiamy-editor-content");
+  if (savedContent) {
+    mainEditor.innerHTML = savedContent;
+  }
+}
+
 // Initial setup
 mainEditor.focus();
 updateModeIndicator();
 updateFontSize(); // Set initial font size
-updateRestoreButtonState(); // Set initial button state
+
+// Check if returning from description page
+const urlParams = new URLSearchParams(window.location.search);
+if (urlParams.get('action') === 'restore') {
+  autoRestore();
+  // Clean the URL so a refresh doesn't re-trigger the restore
+  history.replaceState(null, '', window.location.pathname);
+}
+
+// Defer the initial button state update to allow the DOM to process any restores
+setTimeout(() => {
+  updateRestoreButtonState();
+}, 0);
 
 mainEditor.addEventListener("blur", () => {
   clearImeState();
@@ -636,7 +645,7 @@ saveMdButton.addEventListener("click", () => {
 
 // --- AUTOSAVE AND RESTORE LOGIC ---
 function updateRestoreButtonState() {
-  const isEditorEmpty = mainEditor.innerHTML.trim() === '';
+  const isEditorEmpty = mainEditor.innerText.trim() === ''; // Use innerText for a more accurate visual check
   const hasSavedContent = !!localStorage.getItem('boshiamy-editor-content');
   restoreButton.disabled = !isEditorEmpty || !hasSavedContent;
 }
@@ -654,7 +663,7 @@ const autoSaveChanges = () => {
 // Debounce the save function to avoid excessive writes
 const debouncedSave = debounce(autoSaveChanges, 500);
 
-mainEditor.addEventListener("input", () => {
+mainEditor.addEventListener("keyup", () => {
   // Update button state immediately on input
   updateRestoreButtonState();
   // Debounce the actual save operation
