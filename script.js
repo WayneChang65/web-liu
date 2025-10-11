@@ -135,8 +135,9 @@ mainEditor.addEventListener("keydown", handleKeyDown);
 
 function updateModeIndicator() {
   const modeText = imeMode === "boshiamy" ? "嘸蝦米模式" : "英數模式";
+  const modeClass = imeMode === "boshiamy" ? "boshiamy" : "english";
   const fontSizeDisplay = Math.round(currentFontSize * 10);
-  modeIndicator.textContent = `目前為：${modeText} (Ctrl+p 切換), 字型大小：${fontSizeDisplay}`;
+  modeIndicator.innerHTML = `目前為：<span class="mode-text ${modeClass}">${modeText}</span> (Ctrl+p 切換), 字型大小：${fontSizeDisplay}`;
 }
 
 function handleKeyDown(e) {

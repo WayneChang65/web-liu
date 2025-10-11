@@ -266,3 +266,34 @@ body.immersive-mode .button-container {
     justify-content: flex-end;
 }
 
+/* -- Highlight for IME mode text -- */
+.mode-text {
+  padding: 3px 8px;
+  border-radius: 5px;
+  font-weight: 500;
+  transition: background-color 0.3s, color 0.3s;
+}
+
+/* --- Boshiamy Mode Colors --- */
+/* Light Theme */
+body:not(.dark-mode) .mode-text.boshiamy {
+  background-color: #e0eafc; /* Light, friendly blue */
+  color: #1c59b8; /* Dark, readable blue */
+}
+/* Dark Theme */
+body.dark-mode .mode-text.boshiamy {
+  background-color: #2a4b7b; /* Dark, muted blue */
+  color: #dce9fa; /* Light, soft blue-white */
+}
+
+/* --- English Mode Colors --- */
+/* Light Theme */
+body:not(.dark-mode) .mode-text.english {
+  background-color: #e5e7eb; /* Light grey */
+  color: #374151; /* Dark grey */
+}
+/* Dark Theme */
+body.dark-mode .mode-text.english {
+  background-color: #4b5563; /* Medium-dark grey */
+  color: #f3f4f6; /* Off-white */
+}
