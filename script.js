@@ -202,6 +202,12 @@ function handleKeyDown(e) {
         range.deleteContents();
       }
     } else if (key === " " || key === "Spacebar") {
+      // If buffer is empty, do nothing and let the default space character be inserted.
+      if (inputBuffer.length === 0) {
+        return;
+      }
+
+      // If we're here, the buffer is not empty, so we handle IME logic.
       e.preventDefault();
 
       if (inputBuffer.length > 1 && inputBuffer.endsWith("v")) {
@@ -220,7 +226,7 @@ function handleKeyDown(e) {
         // Otherwise, fall through to treat the buffer (e.g., 'lonv') as a normal code.
       }
 
-      if (inputBuffer.length > 0 && candidates.length > 0) {
+      if (candidates.length > 0) {
         const totalPages = Math.ceil(candidates.length / pageSize);
         if (totalPages > 1) {
           currentPage = (currentPage + 1) % totalPages;
@@ -229,6 +235,7 @@ function handleKeyDown(e) {
           commitText(candidates[0]);
         }
       }
+      // If there's an input buffer but no candidates, space does nothing.
     } else if (key === "Enter") {
       if (inputBuffer.length > 0 && candidates.length > 0) {
         e.preventDefault();
