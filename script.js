@@ -33,7 +33,36 @@ function debounce(func, delay) {
 }
 
 // --- TURNDOWN SERVICE INITIALIZATION ---
-const turndownService = new TurndownService();
+const turndownService = new TurndownService({ headingStyle: 'atx' });
+
+// --- TURNDOWN SERVICE CUSTOM RULES ---
+
+// Keep underline tags since Markdown doesn't have a standard equivalent
+turndownService.addRule('underline', {
+  filter: 'u',
+  replacement: function (content) {
+    return '<u>' + content + '</u>';
+  }
+});
+
+// Keep spans used for font size
+turndownService.addRule('fontSizeSpan', {
+  filter: function (node) {
+    return node.nodeName === 'SPAN' && node.style.fontSize;
+  },
+  replacement: function (content, node) {
+    // Preserve the inline style for font size
+    return '<span style="' + node.getAttribute('style') + '">' + content + '</span>';
+  }
+});
+
+// Ensure em/i tags are converted to asterisks for italics
+turndownService.addRule('italic', {
+    filter: ['em', 'i'],
+    replacement: function (content) {
+        return '*' + content + '*';
+    }
+});
 
 // --- STYLE TOGGLE LOGIC ---
 function toggleStyle(style) {
