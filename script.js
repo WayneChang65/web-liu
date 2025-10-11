@@ -11,6 +11,7 @@ const immersiveToggleButton = document.getElementById(
 const zoomInButton = document.getElementById("zoom-in-button");
 const zoomOutButton = document.getElementById("zoom-out-button");
 const saveMdButton = document.getElementById("save-md-button");
+const restoreButton = document.getElementById("restore-button");
 
 let inputBuffer = "";
 let candidates = [];
@@ -18,6 +19,15 @@ let currentPage = 0;
 const pageSize = 10;
 let imeMode = "boshiamy"; // 'boshiamy' or 'english'
 let currentFontSize = 1.2; // Initial font size in rem
+
+// --- DEBOUNCE UTILITY ---
+function debounce(func, delay) {
+  let timeout;
+  return function (...args) {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => func.apply(this, args), delay);
+  };
+}
 
 // --- TURNDOWN SERVICE INITIALIZATION ---
 const turndownService = new TurndownService();
@@ -74,10 +84,10 @@ function toggleStyle(style) {
 function applyTheme(theme) {
   if (theme === "dark") {
     document.body.classList.add("dark-mode");
-    themeToggleButton.textContent = "切換淺色模式";
+    themeToggleButton.textContent = "淺色模式";
   } else {
     document.body.classList.remove("dark-mode");
-    themeToggleButton.textContent = "切換深色模式";
+    themeToggleButton.textContent = "深色模式";
   }
 }
 
@@ -479,5 +489,30 @@ saveMdButton.addEventListener("click", () => {
     // Clean up the object URL
 
     URL.revokeObjectURL(link.href);
+  }
+});
+
+// --- AUTOSAVE AND RESTORE LOGIC ---
+const autoSaveChanges = () => {
+  const content = mainEditor.innerHTML;
+  // Use innerHTML to preserve formatting
+  localStorage.setItem("boshiamy-editor-content", content);
+};
+
+// Debounce the save function to avoid excessive writes
+const debouncedSave = debounce(autoSaveChanges, 500);
+mainEditor.addEventListener("input", debouncedSave);
+
+restoreButton.addEventListener("click", () => {
+  const savedContent = localStorage.getItem("boshiamy-editor-content");
+  if (savedContent) {
+    mainEditor.innerHTML = savedContent;
+
+    // Provide user feedback
+    const originalText = restoreButton.textContent;
+    restoreButton.textContent = "已讀回！";
+    setTimeout(() => {
+      restoreButton.textContent = originalText;
+    }, 2000);
   }
 });

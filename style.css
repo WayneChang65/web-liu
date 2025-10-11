@@ -110,13 +110,12 @@ h1 {
 }
 
 #save-md-button {
-    background-color: #ffc107; /* A distinct color */
+    background-color: #f39c12; /* A softer orange */
 }
 
 #save-md-button:hover {
-    background-color: #e0a800;
+    background-color: #e67e22;
 }
-
 
 #copy-button {
     background-color: #28a745;
@@ -130,11 +129,15 @@ h1 {
     background-color: #007bff;
 }
 
+#zoom-in-button {
+    margin-left: 10px; /* Add extra space to create a group */
+}
+
 #zoom-in-button:hover, #zoom-out-button:hover {
     background-color: #0056b3;
 }
 
-#theme-toggle-button, #immersive-toggle-button {
+#theme-toggle-button, #immersive-toggle-button, #restore-button {
     position: fixed;
     top: 10px;
     padding: 8px 15px;
@@ -158,13 +161,24 @@ h1 {
 }
 
 #immersive-toggle-button {
-    right: 160px; /* Adjust as needed */
+    right: 130px; /* Adjust as needed */
     background-color: #17a2b8;
 }
 
 #immersive-toggle-button:hover {
     background-color: #117a8b;
 }
+
+#restore-button {
+    left: 20px;
+    background-color: #20c997; /* A gentle teal */
+    color: #fff;
+}
+
+#restore-button:hover {
+    background-color: #1baa80;
+}
+
 
 /* Dark Mode Styles */
 body.dark-mode {
@@ -208,6 +222,15 @@ body.dark-mode #mode-indicator {
     color: #f06292;
 }
 
+body.dark-mode #save-md-button {
+    background-color: #e89f4c; /* Muted orange for dark mode */
+    color: #333;
+}
+
+body.dark-mode #save-md-button:hover {
+    background-color: #d38f42;
+}
+
 body.dark-mode #copy-button {
     background-color: #03dac6;
     color: #121212;
@@ -215,6 +238,15 @@ body.dark-mode #copy-button {
 
 body.dark-mode #copy-button:hover {
     background-color: #018786;
+}
+
+body.dark-mode #restore-button {
+    background-color: #2d6a4f; /* A darker, muted teal */
+    color: #e0e0e0;
+}
+
+body.dark-mode #restore-button:hover {
+    background-color: #40916c;
 }
 
 body.dark-mode #zoom-in-button, body.dark-mode #zoom-out-button {
