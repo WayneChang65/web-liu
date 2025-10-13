@@ -14,7 +14,14 @@
     <div class="container">
         <h1>線上嘸蝦米(小青版)</h1>
         <p class="subtitle">在下方區域直接打字，使用嘸蝦米輸入法規則。</p>
-        <div id="mode-indicator"></div>
+        <div class="mode-line">
+            <div id="editor-tabs">
+                <button class="tab-button active" data-editor="1">1</button>
+                <button class="tab-button" data-editor="2">2</button>
+                <button class="tab-button" data-editor="3">3</button>
+            </div>
+            <div id="mode-indicator"></div>
+        </div>
         <div id="ime-container">
             <div id="main-editor" contenteditable="true" placeholder="開始打字..."></div>
             <div id="ime-bar">

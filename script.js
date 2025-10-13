@@ -14,6 +14,14 @@ const saveMdButton = document.getElementById("save-md-button");
 const restoreButton = document.getElementById("restore-button");
 const buttonContainer = document.querySelector(".button-container");
 const buttonToggle = document.getElementById("button-toggle");
+const editorTabs = document.getElementById("editor-tabs");
+
+let currentEditorId = 1;
+let editorContents = {
+  1: "",
+  2: "",
+  3: "",
+};
 
 let inputBuffer = "";
 let candidates = [];
@@ -453,11 +461,42 @@ function clearImeState() {
   imeBar.style.display = "none";
 }
 
+// --- EDITOR TAB LOGIC ---
+editorTabs.addEventListener('click', (e) => {
+  const target = e.target.closest('.tab-button');
+  if (!target) return;
+
+  const newEditorId = parseInt(target.dataset.editor, 10);
+  if (newEditorId === currentEditorId) return;
+
+  // 1. Save current editor's content to memory
+  editorContents[currentEditorId] = mainEditor.innerHTML;
+
+  // 2. Update active button in UI
+  const currentActive = editorTabs.querySelector('.active');
+  if (currentActive) {
+    currentActive.classList.remove('active');
+  }
+  target.classList.add('active');
+
+  // 3. Switch to the new editor
+  currentEditorId = newEditorId;
+
+  // 4. Load new editor's content from memory
+  mainEditor.innerHTML = editorContents[currentEditorId] || '';
+
+  // 5. Update UI states for the new editor
+  updateRestoreButtonState();
+  mainEditor.focus();
+});
+
+
 // Function to restore content from localStorage
-function autoRestore() {
-  const savedContent = localStorage.getItem("boshiamy-editor-content");
+function autoRestore(editorId) {
+  const savedContent = localStorage.getItem(getStorageKey(editorId));
   if (savedContent) {
     mainEditor.innerHTML = savedContent;
+    editorContents[editorId] = savedContent; // Prime the in-memory cache
   }
 }
 
@@ -469,7 +508,6 @@ updateFontSize(); // Set initial font size
 // Check if returning from description page
 const urlParams = new URLSearchParams(window.location.search);
 if (urlParams.get('action') === 'restore') {
-  autoRestore();
   // Clean the URL so a refresh doesn't re-trigger the restore
   history.replaceState(null, '', window.location.pathname);
 }
@@ -607,29 +645,28 @@ saveMdButton.addEventListener("click", () => {
 });
 
 // --- AUTOSAVE AND RESTORE LOGIC ---
+function getStorageKey(id) {
+  return `boshiamy-editor-content-${id}`;
+}
+
 function updateRestoreButtonState() {
-  const isEditorEmpty = mainEditor.innerText.trim() === ''; // Use innerText for a more accurate visual check
-  const hasSavedContent = !!localStorage.getItem('boshiamy-editor-content');
+  const isEditorEmpty = mainEditor.innerText.trim() === '';
+  const hasSavedContent = !!localStorage.getItem(getStorageKey(currentEditorId));
   restoreButton.disabled = !isEditorEmpty || !hasSavedContent;
 }
 
 const autoSaveChanges = () => {
   const content = mainEditor.innerHTML;
-  // Use innerHTML to preserve formatting
-  localStorage.setItem("boshiamy-editor-content", content);
-  // After saving, the state of hasSavedContent might have changed, so update button
-  if (content) {
-    updateRestoreButtonState();
-  }
+  editorContents[currentEditorId] = content; // Update in-memory cache
+  localStorage.setItem(getStorageKey(currentEditorId), content);
+  updateRestoreButtonState(); // Update button state after saving
 };
 
 // Debounce the save function to avoid excessive writes
 const debouncedSave = debounce(autoSaveChanges, 500);
 
 mainEditor.addEventListener("keyup", () => {
-  // Update button state immediately on input
   updateRestoreButtonState();
-  // Debounce the actual save operation
   debouncedSave();
 });
 
@@ -642,7 +679,7 @@ document.addEventListener("visibilitychange", () => {
 });
 
 restoreButton.addEventListener("click", () => {
-  const savedContent = localStorage.getItem("boshiamy-editor-content");
+  const savedContent = localStorage.getItem(getStorageKey(currentEditorId));
   if (savedContent) {
     mainEditor.innerHTML = savedContent;
     updateRestoreButtonState(); // Disable button after restoring

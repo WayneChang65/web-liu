@@ -83,13 +83,71 @@ h1 {
     color: #444;
 }
 
-#mode-indicator {
+.mode-line {
+    display: flex;
+    justify-content: center;
+    align-items: center;
     margin-bottom: 1rem;
+}
+
+#mode-indicator {
     font-weight: 500;
     color: #d9534f; /* A distinct color */
-    height: 1.2em;
     cursor: pointer;
 }
+
+#editor-tabs {
+    margin-right: 15px; /* Space between tabs and mode text */
+    display: flex;
+    gap: 8px;
+}
+
+.tab-button {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 1px solid #ccc;
+    background-color: #f0f0f0;
+    color: #555;
+    font-size: 1rem;
+    font-weight: bold;
+    cursor: pointer;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    transition: background-color 0.2s, color 0.2s, border-color 0.2s, box-shadow 0.2s;
+}
+
+.tab-button:hover {
+    background-color: #e0e0e0;
+    border-color: #aaa;
+}
+
+.tab-button.active {
+    background-color: #007bff;
+    color: white;
+    border-color: #007bff;
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+/* Dark mode adjustments for tabs */
+body.dark-mode .tab-button {
+    background-color: #2c2c2c;
+    border-color: #555;
+    color: #ccc;
+}
+
+body.dark-mode .tab-button:hover {
+    background-color: #3a3a3a;
+    border-color: #777;
+}
+
+body.dark-mode .tab-button.active {
+    background-color: #bb86fc;
+    color: #121212;
+    border-color: #bb86fc;
+}
+
 
 .button-container {
     margin-top: 1rem;
@@ -312,7 +370,7 @@ body.immersive-mode #copy-button {
     display: none;
 }
 
-body.immersive-mode #mode-indicator {
+body.immersive-mode .mode-line {
     padding-top: 30px;
 }
 
