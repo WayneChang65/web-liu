@@ -30,6 +30,7 @@ const pageSize = 10;
 let imeMode = "boshiamy"; // 'boshiamy' or 'english'
 let currentFontSize = 1.2; // Initial font size in rem
 let inactivityTimer;
+let zoomInterval = null;
 
 // --- DEBOUNCE UTILITY ---
 function debounce(func, delay) {
@@ -257,18 +258,39 @@ function updateFontSize() {
   updateModeIndicator();
 }
 
-zoomInButton.addEventListener("click", () => {
+const zoomIn = () => {
   currentFontSize += 0.1;
   updateFontSize();
-});
+};
 
-zoomOutButton.addEventListener("click", () => {
+const zoomOut = () => {
   if (currentFontSize > 0.5) {
-    // Prevent font from becoming too small
     currentFontSize -= 0.1;
     updateFontSize();
   }
+};
+
+const stopZoom = () => {
+  if (zoomInterval) {
+    clearInterval(zoomInterval);
+    zoomInterval = null;
+  }
+};
+
+zoomInButton.addEventListener('mousedown', () => {
+  zoomIn(); // Zoom once immediately
+  zoomInterval = setInterval(zoomIn, 100); // Then zoom continuously
 });
+
+zoomOutButton.addEventListener('mousedown', () => {
+  zoomOut(); // Zoom once immediately
+  zoomInterval = setInterval(zoomOut, 100); // Then zoom continuously
+});
+
+zoomInButton.addEventListener('mouseup', stopZoom);
+zoomInButton.addEventListener('mouseleave', stopZoom);
+zoomOutButton.addEventListener('mouseup', stopZoom);
+zoomOutButton.addEventListener('mouseleave', stopZoom);
 
 // --- IME MODE LOGIC ---
 function toggleImeMode() {
