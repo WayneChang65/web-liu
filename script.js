@@ -31,6 +31,20 @@ let imeMode = "boshiamy"; // 'boshiamy' or 'english'
 let currentFontSize = 1.2; // Initial font size in rem
 let inactivityTimer;
 let zoomInterval = null;
+let persistentSaveListenersAttached = false;
+
+function attachPersistentSaveListeners() {
+  if (persistentSaveListenersAttached) return;
+
+  // Ensure content is saved when the user leaves the page
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") {
+      autoSaveChanges();
+    }
+  });
+
+  persistentSaveListenersAttached = true;
+}
 
 // --- DEBOUNCE UTILITY ---
 function debounce(func, delay) {
@@ -690,14 +704,7 @@ const debouncedSave = debounce(autoSaveChanges, 500);
 mainEditor.addEventListener("keyup", () => {
   updateRestoreButtonState();
   debouncedSave();
-});
-
-
-// Ensure content is saved when the user leaves the page
-document.addEventListener("visibilitychange", () => {
-  if (document.visibilityState === "hidden") {
-    autoSaveChanges();
-  }
+  attachPersistentSaveListeners(); // Activate aggressive save on first interaction
 });
 
 restoreButton.addEventListener("click", () => {
