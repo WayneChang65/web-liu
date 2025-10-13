@@ -312,6 +312,10 @@ body.immersive-mode #copy-button {
     display: none;
 }
 
+body.immersive-mode #mode-indicator {
+    padding-top: 30px;
+}
+
 body.immersive-mode .button-container {
     position: fixed;
     bottom: 20px;
