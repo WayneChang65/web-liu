@@ -351,7 +351,7 @@ function updateModeIndicator() {
   const modeText = imeMode === "boshiamy" ? "嘸蝦米模式" : "英數模式";
   const modeClass = imeMode === "boshiamy" ? "boshiamy" : "english";
   const fontSizeDisplay = Math.round(currentFontSize * 10);
-  modeIndicator.innerHTML = `<span class="mode-text ${modeClass}">${modeText}</span> (Ctrl+p 切換), 字型大小：${fontSizeDisplay}`;
+  modeIndicator.innerHTML = `<span class="mode-text ${modeClass}">${modeText}</span> (Ctrl+p 切換)<span class="font-size-indicator">, 字型大小：${fontSizeDisplay}</span>`;
 }
 
 function handleKeyDown(e) {

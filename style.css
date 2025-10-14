@@ -506,4 +506,8 @@ body.dark-mode .mode-text.english {
     #top-button-container.expanded > :last-child {
         margin-bottom: 0;
     }
+
+    .font-size-indicator {
+        display: none;
+    }
 }
