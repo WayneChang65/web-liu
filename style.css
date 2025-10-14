@@ -453,3 +453,57 @@ body.dark-mode .mode-text.english {
   cursor: not-allowed;
   pointer-events: none; /* Prevents hover effects */
 }
+
+#top-button-container {
+    position: fixed;
+    top: 10px;
+    right: 10px;
+    z-index: 1001;
+}
+
+#top-button-toggle {
+    display: none; /* Hidden by default */
+    padding: 8px 12px;
+    font-size: 1.2rem;
+    background-color: #6c757d;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+@media (max-width: 550px) {
+    /* 1. Show the toggle button */
+    #top-button-toggle {
+        display: block;
+    }
+
+    /* 2. Hide the action buttons by default */
+    #top-button-container > button:not(#top-button-toggle),
+    #top-button-container > a {
+        display: none;
+    }
+
+    /* 3. Style the expanded container */
+    #top-button-container.expanded {
+        background-color: rgba(108, 117, 125, 0.9);
+        padding: 10px;
+        border-radius: 5px;
+    }
+
+    /* 4. Show and style the action buttons when expanded */
+    #top-button-container.expanded > button:not(#top-button-toggle),
+    #top-button-container.expanded > a {
+        display: block;
+        position: static;
+        width: 100%;
+        margin-bottom: 5px;
+        text-align: center;
+        box-sizing: border-box;
+    }
+
+    /* 5. Remove margin from the last button */
+    #top-button-container.expanded > :last-child {
+        margin-bottom: 0;
+    }
+}

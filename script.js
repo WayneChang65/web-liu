@@ -15,6 +15,8 @@ const restoreButton = document.getElementById("restore-button");
 const buttonContainer = document.querySelector(".button-container");
 const buttonToggle = document.getElementById("button-toggle");
 const editorTabs = document.getElementById("editor-tabs");
+const topButtonContainer = document.getElementById("top-button-container");
+const topButtonToggle = document.getElementById("top-button-toggle");
 
 let currentEditorId = 1;
 let editorContents = {
@@ -264,6 +266,17 @@ buttonToggle.addEventListener("click", () => {
   } else {
     resetInactivityTimer();
   }
+});
+
+// --- TOP BUTTON DRAWER LOGIC (for mobile) ---
+topButtonToggle.addEventListener('click', () => {
+    topButtonContainer.classList.toggle('expanded');
+});
+
+document.addEventListener('click', (event) => {
+    if (topButtonContainer.classList.contains('expanded') && !topButtonContainer.contains(event.target)) {
+        topButtonContainer.classList.remove('expanded');
+    }
 });
 
 // --- FONT SIZE LOGIC ---
