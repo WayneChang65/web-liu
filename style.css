@@ -103,9 +103,9 @@ h1 {
 }
 
 .tab-button {
-    width: 28px;
+    width: 40px;
     height: 28px;
-    border-radius: 50%;
+    border-radius: 14px;
     border: 1px solid #ccc;
     background-color: #f0f0f0;
     color: #555;
