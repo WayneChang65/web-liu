@@ -24,6 +24,10 @@ h1 {
     font-weight: 700;
 }
 
+.title-short {
+    display: none;
+}
+
 .subtitle {
     color: #666;
     margin-bottom: 2rem;
@@ -509,5 +513,13 @@ body.dark-mode .mode-text.english {
 
     .font-size-indicator {
         display: none;
+    }
+
+    .title-full {
+        display: none;
+    }
+
+    .title-short {
+        display: inline;
     }
 }
