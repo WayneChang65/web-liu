@@ -306,6 +306,23 @@ zoomInButton.addEventListener('mouseleave', stopZoom);
 zoomOutButton.addEventListener('mouseup', stopZoom);
 zoomOutButton.addEventListener('mouseleave', stopZoom);
 
+// Add touch events for mobile devices
+zoomInButton.addEventListener('touchstart', (e) => {
+  e.preventDefault();
+  zoomIn();
+  zoomInterval = setInterval(zoomIn, 100);
+});
+zoomOutButton.addEventListener('touchstart', (e) => {
+  e.preventDefault();
+  zoomOut();
+  zoomInterval = setInterval(zoomOut, 100);
+});
+
+zoomInButton.addEventListener('touchend', stopZoom);
+zoomInButton.addEventListener('touchcancel', stopZoom);
+zoomOutButton.addEventListener('touchend', stopZoom);
+zoomOutButton.addEventListener('touchcancel', stopZoom);
+
 // --- IME MODE LOGIC ---
 function toggleImeMode() {
   imeMode = imeMode === "boshiamy" ? "english" : "boshiamy";
