@@ -15,11 +15,19 @@
             text-align: left;
             padding-top: 2rem;
             padding-bottom: 2rem;
-            padding-left: 85px; /* Avoid overlapping with the logo */
+        }
+        .header-bar {
+            display: flex;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+        .header-bar img {
+            height: 38px; /* Match button height */
+            width: auto;
+            margin-right: 15px;
         }
         .back-link {
             display: inline-block;
-            margin-bottom: 2rem;
             padding: 8px 15px;
             font-size: 0.9rem;
             font-weight: 500;
@@ -46,6 +54,9 @@
         }
 
         /* Dark Mode Overrides for this page */
+        body.dark-mode .header-bar img {
+            filter: invert(1) hue-rotate(180deg);
+        }
         body.dark-mode .back-link {
             background-color: transparent;
             color: #94a3b8;
@@ -63,11 +74,11 @@
     </style>
 </head>
 <body>
-    <div id="logo-container">
-        <img src="img/favicon.png" alt="Logo">
-    </div>
     <div class="container">
-        <a href="index.html?action=restore" class="back-link">&larr; 返回編輯器</a>
+        <div class="header-bar">
+            <img src="img/favicon.png" alt="Logo">
+            <a href="index.html?action=restore" class="back-link">&larr; 返回編輯器</a>
+        </div>
         <h1>功能說明</h1>
         
         <h3>快捷鍵</h3>
