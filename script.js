@@ -29,8 +29,8 @@ let inputBuffer = "";
 let candidates = [];
 let currentPage = 0;
 const pageSize = 10;
-let imeMode = "boshiamy"; // 'boshiamy' or 'english'
-let currentFontSize = 1.2; // Initial font size in rem
+let imeMode = localStorage.getItem('boshiamy-ime-mode') || 'boshiamy';
+let currentFontSize = parseFloat(localStorage.getItem('boshiamy-font-size')) || 1.2;
 let inactivityTimer;
 let zoomInterval = null;
 let persistentSaveListenersAttached = false;
@@ -282,6 +282,7 @@ document.addEventListener('click', (event) => {
 // --- FONT SIZE LOGIC ---
 function updateFontSize() {
   mainEditor.style.fontSize = `${currentFontSize}rem`;
+  localStorage.setItem('boshiamy-font-size', currentFontSize);
   updateModeIndicator();
 }
 
@@ -339,6 +340,7 @@ zoomOutButton.addEventListener('touchcancel', stopZoom);
 // --- IME MODE LOGIC ---
 function toggleImeMode() {
   imeMode = imeMode === "boshiamy" ? "english" : "boshiamy";
+  localStorage.setItem('boshiamy-ime-mode', imeMode);
   clearImeState();
   updateModeIndicator();
 }
