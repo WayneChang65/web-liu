@@ -36,6 +36,7 @@ html-minifier-terser description.html \
 echo "Minifying JavaScript..."
 terser script.js -o min/script.js -c -m
 terser boshiamy-data.js -o min/boshiamy-data.js -c -m
+terser stats.js -o min/stats.js -c -m
 
 # --- Minify CSS files ---
 echo "Minifying CSS..."

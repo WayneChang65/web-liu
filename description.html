@@ -53,6 +53,17 @@
             padding-left: 20px;
         }
 
+        .stats-container {
+            text-align: center;
+            margin-top: 3rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid #d1d5db;
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            color: #6b7280;
+        }
+
         /* Dark Mode Overrides for this page */
         body.dark-mode .header-bar img {
             filter: invert(1) hue-rotate(180deg);
@@ -70,6 +81,10 @@
         body.dark-mode h3 {
             color: #22d3ee;
             text-shadow: 0 0 6px rgba(34, 211, 238, 0.4);
+        }
+        body.dark-mode .stats-container {
+            border-top-color: #334155;
+            color: #94a3b8;
         }
     </style>
 </head>
@@ -111,6 +126,11 @@
             <li>點擊上方的 1, 2, 3 數字按鈕，可以在三個獨立的編輯區之間切換。</li>
             <li>每個編輯區都有各自獨立的內容與暫存功能，互不干擾。</li>
         </ul>
+
+        <div class="stats-container">
+            <div id="online-status">在線人數：<span id="online-users">...</span></div>
+            <div id="total-visits">總使用人次：<span id="total-visits-count">...</span></div>
+        </div>
     </div>
     <script>
         // Apply dark mode if it was set on the main page
@@ -119,5 +139,8 @@
             document.body.classList.add("dark-mode");
         }
     </script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <script src="stats.js"></script>
 </body>
 </html>

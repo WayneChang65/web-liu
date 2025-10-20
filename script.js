@@ -29,8 +29,9 @@ let inputBuffer = "";
 let candidates = [];
 let currentPage = 0;
 const pageSize = 10;
-let imeMode = localStorage.getItem('boshiamy-ime-mode') || 'boshiamy';
-let currentFontSize = parseFloat(localStorage.getItem('boshiamy-font-size')) || 1.2;
+let imeMode = localStorage.getItem("boshiamy-ime-mode") || "boshiamy";
+let currentFontSize =
+  parseFloat(localStorage.getItem("boshiamy-font-size")) || 1.2;
 let inactivityTimer;
 let zoomInterval = null;
 let persistentSaveListenersAttached = false;
@@ -58,35 +59,37 @@ function debounce(func, delay) {
 }
 
 // --- TURNDOWN SERVICE INITIALIZATION ---
-const turndownService = new TurndownService({ headingStyle: 'atx' });
+const turndownService = new TurndownService({ headingStyle: "atx" });
 
 // --- TURNDOWN SERVICE CUSTOM RULES ---
 
 // Keep underline tags since Markdown doesn't have a standard equivalent
-turndownService.addRule('underline', {
-  filter: 'u',
+turndownService.addRule("underline", {
+  filter: "u",
   replacement: function (content) {
-    return '<u>' + content + '</u>';
-  }
+    return "<u>" + content + "</u>";
+  },
 });
 
 // Keep spans used for font size
-turndownService.addRule('fontSizeSpan', {
+turndownService.addRule("fontSizeSpan", {
   filter: function (node) {
-    return node.nodeName === 'SPAN' && node.style.fontSize;
+    return node.nodeName === "SPAN" && node.style.fontSize;
   },
   replacement: function (content, node) {
     // Preserve the inline style for font size
-    return '<span style="' + node.getAttribute('style') + '">' + content + '</span>';
-  }
+    return (
+      '<span style="' + node.getAttribute("style") + '">' + content + "</span>"
+    );
+  },
 });
 
 // Ensure em/i tags are converted to asterisks for italics
-turndownService.addRule('italic', {
-    filter: ['em', 'i'],
-    replacement: function (content) {
-        return '*' + content + '*';
-    }
+turndownService.addRule("italic", {
+  filter: ["em", "i"],
+  replacement: function (content) {
+    return "*" + content + "*";
+  },
 });
 
 // --- STYLE TOGGLE LOGIC ---
@@ -150,45 +153,54 @@ function changeSelectionFontSize(direction) {
   const container = range.commonAncestorContainer;
 
   // Find if the selection is already inside one of our sizing spans
-  const element = container.nodeType === Node.ELEMENT_NODE ? container : container.parentElement;
+  const element =
+    container.nodeType === Node.ELEMENT_NODE
+      ? container
+      : container.parentElement;
   const existingSpan = element.closest('span[data-font-sized="true"]');
 
   if (existingSpan) {
     // Case 1: We are inside a span we created. Modify it.
-    const currentFontSize = parseFloat(window.getComputedStyle(existingSpan).fontSize);
-    const newSize = direction === 'increase' ? currentFontSize + 1 : currentFontSize - 1;
-    
+    const currentFontSize = parseFloat(
+      window.getComputedStyle(existingSpan).fontSize
+    );
+    const newSize =
+      direction === "increase" ? currentFontSize + 1 : currentFontSize - 1;
+
     if (newSize > 0) {
-        existingSpan.style.fontSize = `${newSize}px`;
+      existingSpan.style.fontSize = `${newSize}px`;
     }
     // After modifying, re-select the original range to allow consecutive operations.
     selection.removeAllRanges();
     selection.addRange(range);
-
   } else {
     // Case 2: It's plain text or text styled in some other way. Wrap it in a new span.
-    const parentForStyle = container.nodeType === Node.TEXT_NODE ? container.parentElement : container;
+    const parentForStyle =
+      container.nodeType === Node.TEXT_NODE
+        ? container.parentElement
+        : container;
     const computedStyle = window.getComputedStyle(parentForStyle);
     const currentFontSize = parseFloat(computedStyle.fontSize);
-    const newSize = direction === 'increase' ? currentFontSize + 1 : currentFontSize - 1;
+    const newSize =
+      direction === "increase" ? currentFontSize + 1 : currentFontSize - 1;
 
     if (newSize > 0) {
-        const newSpan = document.createElement('span');
-        newSpan.dataset.fontSized = 'true'; // Add the marker attribute
-        newSpan.style.fontSize = `${newSize}px`;
-        try {
-            const fragment = range.extractContents();
-            newSpan.appendChild(fragment);
-            range.insertNode(newSpan);
+      const newSpan = document.createElement("span");
+      newSpan.dataset.fontSized = "true"; // Add the marker attribute
+      newSpan.style.fontSize = `${newSize}px`;
+      try {
+        const fragment = range.extractContents();
+        newSpan.appendChild(fragment);
+        range.insertNode(newSpan);
 
-            // Reselect the modified text
-            selection.removeAllRanges();
-            const newRange = document.createRange();
-            newRange.selectNodeContents(newSpan);
-            selection.addRange(newRange);
-        } catch (e) { 
-            console.error("Could not apply font size change:", e);
-        }
+        // Reselect the modified text
+        selection.removeAllRanges();
+        const newRange = document.createRange();
+        newRange.selectNodeContents(newSpan);
+        selection.addRange(newRange);
+      } catch (e) {
+        console.error("Could not apply font size change:", e);
+      }
     }
   }
 }
@@ -269,20 +281,23 @@ buttonToggle.addEventListener("click", () => {
 });
 
 // --- TOP BUTTON DRAWER LOGIC (for mobile) ---
-topButtonToggle.addEventListener('click', () => {
-    topButtonContainer.classList.toggle('expanded');
+topButtonToggle.addEventListener("click", () => {
+  topButtonContainer.classList.toggle("expanded");
 });
 
-document.addEventListener('click', (event) => {
-    if (topButtonContainer.classList.contains('expanded') && !topButtonContainer.contains(event.target)) {
-        topButtonContainer.classList.remove('expanded');
-    }
+document.addEventListener("click", (event) => {
+  if (
+    topButtonContainer.classList.contains("expanded") &&
+    !topButtonContainer.contains(event.target)
+  ) {
+    topButtonContainer.classList.remove("expanded");
+  }
 });
 
 // --- FONT SIZE LOGIC ---
 function updateFontSize() {
   mainEditor.style.fontSize = `${currentFontSize}rem`;
-  localStorage.setItem('boshiamy-font-size', currentFontSize);
+  localStorage.setItem("boshiamy-font-size", currentFontSize);
   updateModeIndicator();
 }
 
@@ -305,42 +320,42 @@ const stopZoom = () => {
   }
 };
 
-zoomInButton.addEventListener('mousedown', () => {
+zoomInButton.addEventListener("mousedown", () => {
   zoomIn(); // Zoom once immediately
   zoomInterval = setInterval(zoomIn, 100); // Then zoom continuously
 });
 
-zoomOutButton.addEventListener('mousedown', () => {
+zoomOutButton.addEventListener("mousedown", () => {
   zoomOut(); // Zoom once immediately
   zoomInterval = setInterval(zoomOut, 100); // Then zoom continuously
 });
 
-zoomInButton.addEventListener('mouseup', stopZoom);
-zoomInButton.addEventListener('mouseleave', stopZoom);
-zoomOutButton.addEventListener('mouseup', stopZoom);
-zoomOutButton.addEventListener('mouseleave', stopZoom);
+zoomInButton.addEventListener("mouseup", stopZoom);
+zoomInButton.addEventListener("mouseleave", stopZoom);
+zoomOutButton.addEventListener("mouseup", stopZoom);
+zoomOutButton.addEventListener("mouseleave", stopZoom);
 
 // Add touch events for mobile devices
-zoomInButton.addEventListener('touchstart', (e) => {
+zoomInButton.addEventListener("touchstart", (e) => {
   e.preventDefault();
   zoomIn();
   zoomInterval = setInterval(zoomIn, 100);
 });
-zoomOutButton.addEventListener('touchstart', (e) => {
+zoomOutButton.addEventListener("touchstart", (e) => {
   e.preventDefault();
   zoomOut();
   zoomInterval = setInterval(zoomOut, 100);
 });
 
-zoomInButton.addEventListener('touchend', stopZoom);
-zoomInButton.addEventListener('touchcancel', stopZoom);
-zoomOutButton.addEventListener('touchend', stopZoom);
-zoomOutButton.addEventListener('touchcancel', stopZoom);
+zoomInButton.addEventListener("touchend", stopZoom);
+zoomInButton.addEventListener("touchcancel", stopZoom);
+zoomOutButton.addEventListener("touchend", stopZoom);
+zoomOutButton.addEventListener("touchcancel", stopZoom);
 
 // --- IME MODE LOGIC ---
 function toggleImeMode() {
   imeMode = imeMode === "boshiamy" ? "english" : "boshiamy";
-  localStorage.setItem('boshiamy-ime-mode', imeMode);
+  localStorage.setItem("boshiamy-ime-mode", imeMode);
   clearImeState();
   updateModeIndicator();
 }
@@ -377,14 +392,16 @@ function handleKeyDown(e) {
     }
 
     // Font size shortcuts
-    if (key === '[' || (e.shiftKey && key === '<') || key === '9') { // Ctrl+[ or Ctrl+Shift+< or Ctrl+9
+    if (key === "[" || (e.shiftKey && key === "<") || key === "9") {
+      // Ctrl+[ or Ctrl+Shift+< or Ctrl+9
       e.preventDefault();
-      changeSelectionFontSize('decrease');
+      changeSelectionFontSize("decrease");
       return;
     }
-    if (key === ']' || (e.shiftKey && key === '>') || key === '0') { // Ctrl+] or Ctrl+Shift+> or Ctrl+0
+    if (key === "]" || (e.shiftKey && key === ">") || key === "0") {
+      // Ctrl+] or Ctrl+Shift+> or Ctrl+0
       e.preventDefault();
-      changeSelectionFontSize('increase');
+      changeSelectionFontSize("increase");
       return;
     }
 
@@ -453,9 +470,6 @@ function handleKeyDown(e) {
         } else {
           commitText(candidates[0]);
         }
-      } else {
-        // If there are no candidates, clear the buffer so the user can re-type.
-        clearImeState();
       }
       // If there's an input buffer but no candidates, space does nothing.
     } else if (key === "Enter") {
@@ -530,8 +544,8 @@ function clearImeState() {
 }
 
 // --- EDITOR TAB LOGIC ---
-editorTabs.addEventListener('click', (e) => {
-  const target = e.target.closest('.tab-button');
+editorTabs.addEventListener("click", (e) => {
+  const target = e.target.closest(".tab-button");
   if (!target) return;
 
   const newEditorId = parseInt(target.dataset.editor, 10);
@@ -541,23 +555,22 @@ editorTabs.addEventListener('click', (e) => {
   editorContents[currentEditorId] = mainEditor.innerHTML;
 
   // 2. Update active button in UI
-  const currentActive = editorTabs.querySelector('.active');
+  const currentActive = editorTabs.querySelector(".active");
   if (currentActive) {
-    currentActive.classList.remove('active');
+    currentActive.classList.remove("active");
   }
-  target.classList.add('active');
+  target.classList.add("active");
 
   // 3. Switch to the new editor
   currentEditorId = newEditorId;
 
   // 4. Load new editor's content from memory
-  mainEditor.innerHTML = editorContents[currentEditorId] || '';
+  mainEditor.innerHTML = editorContents[currentEditorId] || "";
 
   // 5. Update UI states for the new editor
   updateRestoreButtonState();
   mainEditor.focus();
 });
-
 
 // Function to restore content from localStorage
 function autoRestore(editorId) {
@@ -575,9 +588,9 @@ updateFontSize(); // Set initial font size
 
 // Check if returning from description page
 const urlParams = new URLSearchParams(window.location.search);
-if (urlParams.get('action') === 'restore') {
+if (urlParams.get("action") === "restore") {
   // Clean the URL so a refresh doesn't re-trigger the restore
-  history.replaceState(null, '', window.location.pathname);
+  history.replaceState(null, "", window.location.pathname);
 }
 
 // Defer the initial button state update to allow the DOM to process any restores
@@ -718,8 +731,10 @@ function getStorageKey(id) {
 }
 
 function updateRestoreButtonState() {
-  const isEditorEmpty = mainEditor.innerText.trim() === '';
-  const hasSavedContent = !!localStorage.getItem(getStorageKey(currentEditorId));
+  const isEditorEmpty = mainEditor.innerText.trim() === "";
+  const hasSavedContent = !!localStorage.getItem(
+    getStorageKey(currentEditorId)
+  );
   restoreButton.disabled = !isEditorEmpty || !hasSavedContent;
 }
 
