@@ -1,12 +1,5 @@
 document.addEventListener("DOMContentLoaded", () => {
-  const onlineUsersSpan = document.getElementById("online-users");
-  const totalVisitsSpan = document.getElementById("total-visits-count");
-
-  // If the stats elements don't exist on this page, do nothing.
-  if (!onlineUsersSpan || !totalVisitsSpan) {
-    return;
-  }
-
+  // This configuration and initialization part runs on ALL pages that include the script.
   const firebaseConfig = {
     apiKey: "AIzaSyDHqZchJa7FCr3nmXvMma7fsmI8ACr9bRQ",
     authDomain: "web-liu.firebaseapp.com",
@@ -19,17 +12,16 @@ document.addEventListener("DOMContentLoaded", () => {
   };
 
   if (firebaseConfig.apiKey === "YOUR_API_KEY") {
-    onlineUsersSpan.textContent = "尚未設定";
-    totalVisitsSpan.textContent = "尚未設定";
-    console.warn("請在 stats.js 中填寫您的 Firebase 設定！");
+    console.warn("Firebase config is not set in stats.js!");
     return;
   }
 
   firebase.initializeApp(firebaseConfig);
   const database = firebase.database();
 
-  // --- Online Users Logic ---
+  // --- Core Presence & Visit Logic (runs on all pages) ---
   const onlineRef = database.ref("online");
+  const totalVisitsRef = database.ref("totalVisits");
   const connectedRef = database.ref(".info/connected");
 
   connectedRef.on("value", (snap) => {
@@ -39,22 +31,25 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  onlineRef.on("value", (snap) => {
-    onlineUsersSpan.textContent = snap.numChildren();
-  });
-
-  // --- Total Visits Logic ---
-  const totalVisitsRef = database.ref("totalVisits");
-
-  totalVisitsRef.on("value", (snap) => {
-    const visits = snap.val() || 0;
-    totalVisitsSpan.textContent = visits.toLocaleString();
-  });
-
   if (!sessionStorage.getItem('hasIncrementedVisits')) {
     totalVisitsRef.transaction((currentValue) => {
       return (currentValue || 0) + 1;
     });
     sessionStorage.setItem('hasIncrementedVisits', 'true');
+  }
+
+  // --- UI Display Logic (only runs if elements exist on the page) ---
+  const onlineUsersSpan = document.getElementById("online-users");
+  const totalVisitsSpan = document.getElementById("total-visits-count");
+
+  if (onlineUsersSpan && totalVisitsSpan) {
+    onlineRef.on("value", (snap) => {
+      onlineUsersSpan.textContent = snap.numChildren();
+    });
+
+    totalVisitsRef.on("value", (snap) => {
+      const visits = snap.val() || 0;
+      totalVisitsSpan.textContent = visits.toLocaleString();
+    });
   }
 });
