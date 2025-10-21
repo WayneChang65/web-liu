@@ -412,9 +412,9 @@ function handleKeyDown(e) {
   if (imeMode === "boshiamy") {
     const validChars = /^[a-z,.'\[\]v]$/;
 
-    if (validChars.test(key)) {
+    if (validChars.test(key.toLowerCase())) {
       e.preventDefault();
-      inputBuffer += key;
+      inputBuffer += key.toLowerCase();
       const results = boshiamyData[inputBuffer];
       candidates = results ? results.split("") : [];
       currentPage = 0;
