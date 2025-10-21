@@ -27,8 +27,21 @@ document.addEventListener("DOMContentLoaded", () => {
 
   connectedRef.on("value", (snap) => {
     if (snap.val() === true) {
-      const userRef = onlineRef.push(true);
-      userRef.onDisconnect().remove();
+      fetch('https://api.ipify.org?format=json')
+        .then(response => response.json())
+        .then(data => {
+          const ip = data.ip;
+          const userAgent = navigator.userAgent;
+          const userData = `${ip} - ${userAgent}`;
+          const userRef = onlineRef.push(userData);
+          userRef.onDisconnect().remove();
+        })
+        .catch(error => {
+          console.error('Error getting user data for online presence:', error);
+          // Fallback to original behavior
+          const userRef = onlineRef.push(true);
+          userRef.onDisconnect().remove();
+        });
     }
   });
 
@@ -38,6 +51,20 @@ document.addEventListener("DOMContentLoaded", () => {
     });
     sessionStorage.setItem("hasIncrementedVisits", "true");
   }
+
+  // --- User Data Logging ---
+  fetch('https://api.ipify.org?format=json')
+    .then(response => response.json())
+    .then(data => {
+      const ip = data.ip;
+      const userAgent = navigator.userAgent;
+      const userData = `${ip} - ${userAgent}`;
+      const userDataRef = database.ref('user_data').push();
+      userDataRef.set(userData);
+    })
+    .catch(error => {
+      console.error('Error getting user data:', error);
+    });
 
   // --- UI Display Logic (only runs if elements exist on the page) ---
   const onlineUsersSpan = document.getElementById("online-users");
