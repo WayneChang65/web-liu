@@ -3,7 +3,8 @@ document.addEventListener("DOMContentLoaded", () => {
   const firebaseConfig = {
     apiKey: "AIzaSyDHqZchJa7FCr3nmXvMma7fsmI8ACr9bRQ",
     authDomain: "web-liu.firebaseapp.com",
-    databaseURL: "https://web-liu-default-rtdb.asia-southeast1.firebasedatabase.app",
+    databaseURL:
+      "https://web-liu-default-rtdb.asia-southeast1.firebasedatabase.app",
     projectId: "web-liu",
     storageBucket: "web-liu.firebasestorage.app",
     messagingSenderId: "148777824637",
@@ -31,11 +32,11 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  if (!sessionStorage.getItem('hasIncrementedVisits')) {
+  if (!sessionStorage.getItem("hasIncrementedVisits")) {
     totalVisitsRef.transaction((currentValue) => {
       return (currentValue || 0) + 1;
     });
-    sessionStorage.setItem('hasIncrementedVisits', 'true');
+    sessionStorage.setItem("hasIncrementedVisits", "true");
   }
 
   // --- UI Display Logic (only runs if elements exist on the page) ---

@@ -410,7 +410,7 @@ function handleKeyDown(e) {
   }
 
   if (imeMode === "boshiamy") {
-    const validChars = /^[a-z,.'\[\]v]$/;
+    const validChars = /^[a-z,.'\[\]vrsf]$/;
 
     if (validChars.test(key.toLowerCase())) {
       e.preventDefault();
@@ -446,20 +446,34 @@ function handleKeyDown(e) {
       // If we're here, the buffer is not empty, so we handle IME logic.
       e.preventDefault();
 
-      if (inputBuffer.length > 1 && inputBuffer.endsWith("v")) {
-        const root = inputBuffer.slice(0, -1);
-        const rootHasCandidates =
-          boshiamyData.hasOwnProperty(root) && boshiamyData[root].length > 1;
+      const selectorMap = {
+        v: 1, // Selects candidate at index 1
+        r: 2, // Selects candidate at index 2
+        s: 3, // Selects candidate at index 3
+        f: 4, // Selects candidate at index 4
+      };
+      const lastChar = inputBuffer.slice(-1);
+
+      if (inputBuffer.length > 1 && selectorMap.hasOwnProperty(lastChar)) {
         const bufferHasCandidates = boshiamyData.hasOwnProperty(inputBuffer);
 
-        // Only treat 'v' as a special selector if the root code exists
-        // and the full code (with 'v') does NOT exist as a valid code.
-        if (rootHasCandidates && !bufferHasCandidates) {
-          const rootCandidates = boshiamyData[root];
-          commitText(rootCandidates.split("")[1]); // Commit 2nd candidate of the root
+        if (!bufferHasCandidates) {
+          // The buffer itself is not a valid code, so treat lastChar as a selector.
+          const root = inputBuffer.slice(0, -1);
+          const candidateIndex = selectorMap[lastChar];
+          const rootHasCandidates =
+            boshiamyData.hasOwnProperty(root) &&
+            boshiamyData[root].length > candidateIndex;
+
+          if (rootHasCandidates) {
+            const rootCandidates = boshiamyData[root];
+            commitText(rootCandidates.split("")[candidateIndex]);
+          } else {
+            clearImeState();
+          }
           return;
         }
-        // Otherwise, fall through to treat the buffer (e.g., 'lonv') as a normal code.
+        // If bufferHasCandidates is true, we fall through to the default space logic below.
       }
 
       if (candidates.length > 0) {
@@ -470,14 +484,13 @@ function handleKeyDown(e) {
         } else {
           commitText(candidates[0]);
         }
+      } else {
+        clearImeState();
       }
-      // If there's an input buffer but no candidates, space does nothing.
     } else if (key === "Enter") {
-      if (inputBuffer.length > 0 && candidates.length > 0) {
-        e.preventDefault();
-        commitText(candidates[0]);
+      if (inputBuffer.length > 0) {
+        clearImeState();
       }
-      // If buffer is empty, do nothing and let the browser handle the default Enter action.
     } else if (key.startsWith("Arrow")) {
       clearImeState();
     }
