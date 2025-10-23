@@ -477,15 +477,21 @@ function handleKeyDown(e) {
       }
 
       if (candidates.length > 0) {
-        const totalPages = Math.ceil(candidates.length / pageSize);
-        if (totalPages > 1) {
-          currentPage = (currentPage + 1) % totalPages;
-          updateImeDisplay();
-        } else {
-          commitText(candidates[0]);
-        }
+        commitText(candidates[0]);
       } else {
         clearImeState();
+      }
+    } else if (key === "PageDown") {
+      if (candidates.length > pageSize) {
+        const totalPages = Math.ceil(candidates.length / pageSize);
+        currentPage = (currentPage + 1) % totalPages;
+        updateImeDisplay();
+      }
+    } else if (key === "PageUp") {
+      if (candidates.length > pageSize) {
+        const totalPages = Math.ceil(candidates.length / pageSize);
+        currentPage = (currentPage - 1 + totalPages) % totalPages;
+        updateImeDisplay();
       }
     } else if (key === "Enter") {
       if (inputBuffer.length > 0) {
