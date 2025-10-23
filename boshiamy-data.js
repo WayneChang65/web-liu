@@ -22778,3 +22778,4 @@ const boshiamyData = {
     "]]": "』﹄】︼》︾»",
     "]]v": "﹄︼︾"
 };
+module.exports = boshiamyData;
