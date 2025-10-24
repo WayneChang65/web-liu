@@ -9,7 +9,6 @@
     <link rel="stylesheet" href="style.css">
     <style>
         body {
-            align-items: flex-start;
         }
         .container {
             text-align: left;
@@ -86,6 +85,9 @@
             border-top-color: #334155;
             color: #94a3b8;
         }
+        footer {
+            margin-top: 0.5rem;
+        }
     </style>
 </head>
 <body>
@@ -132,6 +134,9 @@
             <div id="total-visits">總使用人次：<span id="total-visits-count">...</span></div>
         </div>
     </div>
+    <footer>
+        © 2025 Wayne Chang (w/ Gemini CLI)
+    </footer>
     <script>
         // Apply dark mode if it was set on the main page
         const savedTheme = localStorage.getItem("theme") || "light";

@@ -5,6 +5,7 @@ body {
     background-color: #ffffff;
     color: #1f2937;
     display: flex;
+    flex-direction: column;
     justify-content: center;
     align-items: center;
     min-height: 100vh;
@@ -500,4 +501,21 @@ body.dark-mode .mode-text.english {
     .title-short {
         display: inline;
     }
+}
+
+footer {
+    margin-top: 2rem;
+    margin-bottom: 1rem;
+    font-size: 0.8rem;
+    color: #9ca3af; /* Light gray */
+    text-align: center;
+}
+
+body.dark-mode footer {
+    color: #6b7280; /* Slightly darker gray for dark mode */
+}
+
+body.immersive-mode footer {
+    margin-top: 0.5rem;
+    margin-bottom: 0.5rem;
 }
