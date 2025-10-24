@@ -66,8 +66,6 @@ h1 {
 
 #ime-bar {
     position: absolute;
-    bottom: 15px;
-    left: 15px;
     background-color: rgba(255, 255, 255, 0.9);
     border: 1px solid #eee;
     border-radius: 4px;
@@ -75,6 +73,7 @@ h1 {
     font-size: 1rem;
     display: none; /* Initially hidden */
     align-items: center;
+    z-index: 10;
 }
 
 #input-buffer {

@@ -503,6 +503,84 @@ function handleKeyDown(e) {
   }
 }
 
+function updateImeBarPosition() {
+  const selection = window.getSelection();
+  // Only proceed if there's a selection and it's inside our editor
+  if (!selection.rangeCount || !mainEditor.contains(selection.anchorNode)) {
+    return;
+  }
+
+  const range = selection.getRangeAt(0);
+  const editorRect = mainEditor.getBoundingClientRect();
+
+  let effectiveRect;
+  if (range.collapsed) {
+    // For a collapsed range (a cursor), getBoundingClientRect can be unreliable.
+    // We insert a temporary element to get a stable position.
+    const tempSpan = document.createElement("span");
+    // Use a zero-width space to ensure the span has a layout
+    tempSpan.textContent = "​"; // Zero-width space
+    range.insertNode(tempSpan);
+    effectiveRect = tempSpan.getBoundingClientRect();
+    // Clean up the temporary element
+    const parent = tempSpan.parentNode;
+    if (parent) {
+      parent.removeChild(tempSpan);
+      // Restore the original selection, which might have been modified
+      parent.normalize(); // Merges adjacent text nodes
+    }
+    selection.removeAllRanges();
+    selection.addRange(range);
+  } else {
+    // For a non-collapsed selection, the rect is usually fine.
+    effectiveRect = range.getBoundingClientRect();
+  }
+
+  // If we couldn't get a valid rectangle, we can't position the bar.
+  if (!effectiveRect || (effectiveRect.width === 0 && effectiveRect.height === 0)) {
+    return;
+  }
+
+  // Calculate top position relative to the editor's content area
+  let top = effectiveRect.bottom - editorRect.top + mainEditor.scrollTop + 5; // 5px offset below
+
+  // If the bar would overflow vertically, place it above the cursor instead
+  const imeBarHeight = imeBar.offsetHeight || 30; // Approx height as a fallback
+  if (top + imeBarHeight > mainEditor.scrollHeight && mainEditor.scrollHeight > imeBarHeight) {
+    top = effectiveRect.top - editorRect.top + mainEditor.scrollTop - imeBarHeight - 5;
+  }
+
+  imeBar.style.top = `${Math.max(0, top)}px`;
+
+  // Determine horizontal position based on cursor's screen position
+  const viewMidpoint = window.innerWidth / 2;
+  imeBar.style.left = "auto";
+  imeBar.style.right = "auto";
+
+  if (effectiveRect.left < viewMidpoint) {
+    // Cursor on left half of screen -> bar appears to the right of cursor
+    imeBar.style.left = `${effectiveRect.left - editorRect.left}px`;
+  } else {
+    // Cursor on right half of screen -> bar appears to the left of cursor
+    // (align bar's right edge with cursor's right edge)
+    imeBar.style.right = `${editorRect.right - effectiveRect.right}px`;
+  }
+
+  // A frame delay allows the browser to render the bar so we can get its actual dimensions
+  // for a final boundary check to prevent it from overflowing the editor horizontally.
+  requestAnimationFrame(() => {
+    const imeBarRect = imeBar.getBoundingClientRect();
+    if (imeBarRect.right > editorRect.right - 5) { // 5px padding
+      imeBar.style.left = 'auto';
+      imeBar.style.right = '5px';
+    }
+    if (imeBarRect.left < editorRect.left + 5) {
+      imeBar.style.right = 'auto';
+      imeBar.style.left = '5px';
+    }
+  });
+}
+
 function updateImeDisplay() {
   if (inputBuffer.length === 0) {
     imeBar.style.display = "none";
@@ -533,6 +611,7 @@ function updateImeDisplay() {
     candidateListSpan.textContent = "（無對應字）";
     imeBar.style.display = "flex";
   }
+  updateImeBarPosition();
 }
 
 function commitText(char) {
@@ -785,5 +864,12 @@ restoreButton.addEventListener("click", () => {
     setTimeout(() => {
       restoreButton.textContent = originalText;
     }, 2000);
+  }
+});
+
+// Update IME bar position whenever the cursor/selection moves
+document.addEventListener("selectionchange", () => {
+  if (imeBar.style.display !== 'none') {
+    updateImeBarPosition();
   }
 });
