@@ -198,12 +198,25 @@ h1 {
     top: 10px;
     left: 20px;
     z-index: 1001;
+    display: flex;
+    align-items: center;
 }
 
 #logo-container img {
     height: 45px;
     width: auto;
     transition: filter 0.3s ease-in-out;
+}
+
+.version-text {
+    font-size: 0.9rem;
+    color: #6b7280; /* Subtler gray */
+    margin-left: 8px;
+    font-weight: 500;
+}
+
+body.dark-mode .version-text {
+    color: #94a3b8;
 }
 
 #description-button {
@@ -516,6 +529,6 @@ body.dark-mode footer {
 }
 
 body.immersive-mode footer {
-    margin-top: 0.5rem;
+    margin-top: -1.5rem;
     margin-bottom: 0.5rem;
 }
