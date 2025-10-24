@@ -541,13 +541,25 @@ function updateImeBarPosition() {
     return;
   }
 
-  // Calculate top position relative to the editor's content area
-  let top = effectiveRect.bottom - editorRect.top + mainEditor.scrollTop + 5; // 5px offset below
+  // Calculate top position relative to the editor's visible area
+  let top = effectiveRect.bottom - editorRect.top + 5; // 5px offset below
 
-  // If the bar would overflow vertically, place it above the cursor instead
+  // If the bar would overflow the editor's visible area, place it above the cursor
   const imeBarHeight = imeBar.offsetHeight || 30; // Approx height as a fallback
-  if (top + imeBarHeight > mainEditor.scrollHeight && mainEditor.scrollHeight > imeBarHeight) {
-    top = effectiveRect.top - editorRect.top + mainEditor.scrollTop - imeBarHeight - 5;
+  const lineHeight = effectiveRect.height || 20; // Approximate line height
+
+  // Condition to flip:
+  // 1. Bar would overflow the visible editor area if placed below
+  // 2. AND the cursor is on the last visible line (i.e., very close to the bottom of the visible editor)
+  // 3. AND there's enough space above the cursor to place the bar
+  const isCursorOnLastTwoVisibleLines = (editorRect.bottom - effectiveRect.bottom < 1.5 * lineHeight);
+
+  const shouldFlip = (top + imeBarHeight > mainEditor.clientHeight) &&
+                     isCursorOnLastTwoVisibleLines &&
+                     (effectiveRect.top - editorRect.top > imeBarHeight + 5); // 5px padding
+
+  if (shouldFlip) {
+      top = effectiveRect.top - editorRect.top - imeBarHeight - 5;
   }
 
   imeBar.style.top = `${Math.max(0, top)}px`;
@@ -870,6 +882,9 @@ restoreButton.addEventListener("click", () => {
 // Update IME bar position whenever the cursor/selection moves
 document.addEventListener("selectionchange", () => {
   if (imeBar.style.display !== 'none') {
-    updateImeBarPosition();
+    // Defer to the next animation frame. This is crucial to avoid race
+    // conditions where the selection has updated but the browser's scroll
+    // position has not, especially after actions like pressing "Enter".
+    requestAnimationFrame(updateImeBarPosition);
   }
 });
