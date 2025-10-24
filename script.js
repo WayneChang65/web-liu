@@ -593,6 +593,44 @@ function updateImeBarPosition() {
   });
 }
 
+function ensureCursorIsVisible() {
+  const selection = window.getSelection();
+  if (!selection.rangeCount) return;
+
+  const range = selection.getRangeAt(0);
+  const editorRect = mainEditor.getBoundingClientRect();
+
+  let effectiveRect;
+  if (range.collapsed) {
+    const tempSpan = document.createElement("span");
+    tempSpan.textContent = "​"; // Zero-width space
+    range.insertNode(tempSpan);
+    effectiveRect = tempSpan.getBoundingClientRect();
+    const parent = tempSpan.parentNode;
+    if (parent) {
+      parent.removeChild(tempSpan);
+      parent.normalize();
+    }
+    selection.removeAllRanges();
+    selection.addRange(range);
+  } else {
+    effectiveRect = range.getBoundingClientRect();
+  }
+
+  if (!effectiveRect || (effectiveRect.width === 0 && effectiveRect.height === 0)) {
+    return;
+  }
+
+  // Check if cursor is above the visible area
+  if (effectiveRect.top < editorRect.top) {
+    mainEditor.scrollTop += effectiveRect.top - editorRect.top;
+  }
+  // Check if cursor is below the visible area
+  else if (effectiveRect.bottom > editorRect.bottom) {
+    mainEditor.scrollTop += effectiveRect.bottom - editorRect.bottom;
+  }
+}
+
 function updateImeDisplay() {
   if (inputBuffer.length === 0) {
     imeBar.style.display = "none";
@@ -644,6 +682,7 @@ function commitText(char) {
 
   clearImeState();
   mainEditor.focus();
+  ensureCursorIsVisible();
 }
 
 function clearImeState() {
@@ -862,6 +901,7 @@ mainEditor.addEventListener("keyup", () => {
   updateRestoreButtonState();
   debouncedSave();
   attachPersistentSaveListeners(); // Activate aggressive save on first interaction
+  ensureCursorIsVisible();
 });
 
 restoreButton.addEventListener("click", () => {
