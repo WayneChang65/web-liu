@@ -17,6 +17,8 @@ const buttonToggle = document.getElementById("button-toggle");
 const editorTabs = document.getElementById("editor-tabs");
 const topButtonContainer = document.getElementById("top-button-container");
 const topButtonToggle = document.getElementById("top-button-toggle");
+const logoContainer = document.getElementById("logo-container");
+const logoImage = logoContainer.querySelector("img");
 
 let currentEditorId = 1;
 let editorContents = {
@@ -30,6 +32,17 @@ let candidates = [];
 let currentPage = 0;
 const pageSize = 10;
 let imeMode = localStorage.getItem("boshiamy-ime-mode") || "boshiamy";
+let lastActiveImeMode = "boshiamy"; 
+
+// Initialize lastActiveImeMode. 
+// If we loaded in 'disabled' mode, default back to boshiamy for the "active" state,
+// or if we loaded in a normal mode, set that as active.
+if (imeMode === "disabled") {
+  lastActiveImeMode = "boshiamy"; 
+} else {
+  lastActiveImeMode = imeMode;
+}
+
 let currentFontSize =
   parseFloat(localStorage.getItem("boshiamy-font-size")) || 1.2;
 let inactivityTimer;
@@ -354,19 +367,72 @@ zoomOutButton.addEventListener("touchcancel", stopZoom);
 
 // --- IME MODE LOGIC ---
 function toggleImeMode() {
-  imeMode = imeMode === "boshiamy" ? "english" : "boshiamy";
-  localStorage.setItem("boshiamy-ime-mode", imeMode);
+  // Ctrl-P logic: Only cycle between Boshiamy and English
+  if (imeMode === "disabled") {
+    // If currently disabled, we just toggle the "background" state
+    lastActiveImeMode = lastActiveImeMode === "boshiamy" ? "english" : "boshiamy";
+    // We do NOT update imeMode here, preserving the "Disabled" state until logo is clicked.
+    // Optional: You could choose to have Ctrl-P 'wake up' the editor, but strict interpretation
+    // of "remove disabled from Ctrl-P" implies separating the concerns.
+  } else {
+    imeMode = imeMode === "boshiamy" ? "english" : "boshiamy";
+    lastActiveImeMode = imeMode;
+  }
+  
+  // If not disabled, we save the mode. If disabled, we keep 'disabled' in storage.
+  if (imeMode !== "disabled") {
+      localStorage.setItem("boshiamy-ime-mode", imeMode);
+  }
+  
   clearImeState();
   updateModeIndicator();
 }
 
+function toggleDisabledMode() {
+  if (imeMode === "disabled") {
+    // Restore previous mode
+    imeMode = lastActiveImeMode;
+  } else {
+    // Go to disabled mode
+    lastActiveImeMode = imeMode;
+    imeMode = "disabled";
+  }
+  localStorage.setItem("boshiamy-ime-mode", imeMode);
+  clearImeState();
+  updateModeIndicator();
+  updateLogoState();
+}
+
+function updateLogoState() {
+    if (imeMode === "disabled") {
+        logoImage.classList.add('disabled-logo');
+        logoContainer.title = "點擊啟用輸入法";
+    } else {
+        logoImage.classList.remove('disabled-logo');
+        logoContainer.title = "點擊暫停輸入法 (無效模式)";
+    }
+}
+
 modeIndicator.addEventListener("click", toggleImeMode);
+logoContainer.addEventListener("click", toggleDisabledMode);
 
 mainEditor.addEventListener("keydown", handleKeyDown);
 
 function updateModeIndicator() {
-  const modeText = imeMode === "boshiamy" ? "嘸蝦米模式" : "英數模式";
-  const modeClass = imeMode === "boshiamy" ? "boshiamy" : "english";
+  let modeText = "";
+  let modeClass = "";
+
+  if (imeMode === "boshiamy") {
+    modeText = "嘸蝦米模式";
+    modeClass = "boshiamy";
+  } else if (imeMode === "english") {
+    modeText = "英數模式";
+    modeClass = "english";
+  } else {
+    modeText = "無效模式";
+    modeClass = "disabled";
+  }
+
   const fontSizeDisplay = Math.round(currentFontSize * 10);
   modeIndicator.innerHTML = `<span class="mode-text ${modeClass}">${modeText}</span> (Ctrl+p 切換)<span class="font-size-indicator">, 字型大小：${fontSizeDisplay}</span>`;
 }
@@ -733,6 +799,7 @@ function autoRestore(editorId) {
 // Initial setup
 mainEditor.focus();
 updateModeIndicator();
+updateLogoState();
 updateFontSize(); // Set initial font size
 
 // Check if returning from description page
