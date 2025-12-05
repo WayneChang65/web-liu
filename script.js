@@ -20,7 +20,7 @@ const topButtonToggle = document.getElementById("top-button-toggle");
 const logoContainer = document.getElementById("logo-container");
 const logoImage = logoContainer.querySelector("img");
 
-let currentEditorId = 1;
+let currentEditorId = parseInt(localStorage.getItem("boshiamy-active-tab")) || 1;
 let editorContents = {
   1: "",
   2: "",
@@ -778,6 +778,7 @@ editorTabs.addEventListener("click", (e) => {
 
   // 3. Switch to the new editor
   currentEditorId = newEditorId;
+  localStorage.setItem("boshiamy-active-tab", currentEditorId);
 
   // 4. Load new editor's content from memory
   mainEditor.innerHTML = editorContents[currentEditorId] || "";
@@ -797,6 +798,14 @@ function autoRestore(editorId) {
 }
 
 // Initial setup
+// Update active tab button if needed
+if (currentEditorId !== 1) {
+  const defaultActive = editorTabs.querySelector('.active');
+  if (defaultActive) defaultActive.classList.remove('active');
+  const newActive = editorTabs.querySelector(`.tab-button[data-editor="${currentEditorId}"]`);
+  if (newActive) newActive.classList.add('active');
+}
+
 mainEditor.focus();
 updateModeIndicator();
 updateLogoState();
@@ -805,6 +814,7 @@ updateFontSize(); // Set initial font size
 // Check if returning from description page
 const urlParams = new URLSearchParams(window.location.search);
 if (urlParams.get("action") === "restore") {
+  autoRestore(currentEditorId);
   // Clean the URL so a refresh doesn't re-trigger the restore
   history.replaceState(null, "", window.location.pathname);
 }
@@ -902,6 +912,11 @@ mainEditor.addEventListener("paste", (e) => {
     if (spanRect.bottom > visibleEditorBottom) {
       mainEditor.scrollTop += spanRect.bottom - visibleEditorBottom;
     }
+    
+    // Trigger save after paste
+    updateRestoreButtonState();
+    debouncedSave();
+    attachPersistentSaveListeners();
   });
 });
 
