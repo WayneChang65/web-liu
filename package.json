@@ -1,0 +1,38 @@
+{
+  "name": "web-liu",
+  "version": "1.0.0",
+  "description": "[線上 Demo](https://liu.wayne65.cc)",
+  "main": "boshiamy-data.js",
+  "dependencies": {
+    "esbuild": "^0.25.12",
+    "fdir": "^6.5.0",
+    "firebase": "^12.6.0",
+    "nanoid": "^3.3.11",
+    "picocolors": "^1.1.1",
+    "picomatch": "^4.0.3",
+    "postcss": "^8.5.6",
+    "rollup": "^4.53.3",
+    "source-map-js": "^1.2.1",
+    "tinyglobby": "^0.2.15",
+    "turndown": "^7.2.2"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/WayneChang65/web-liu.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/WayneChang65/web-liu/issues"
+  },
+  "homepage": "https://github.com/WayneChang65/web-liu#readme",
+  "devDependencies": {
+    "vite": "^7.2.7"
+  }
+}

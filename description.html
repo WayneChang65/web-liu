@@ -4,9 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>功能說明 - 線上嘸蝦米編輯器(小青網蝦)</title>
-    <link rel="icon" href="img/favicon.png" type="image/png">
-    <link rel="apple-touch-icon" href="img/favicon.png">
-    <link rel="stylesheet" href="style.css?v=0.1.4">
+    <link rel="icon" href="/img/favicon.png" type="image/png">
+    <link rel="apple-touch-icon" href="/img/favicon.png">
     <style>
         body {
         }
@@ -93,7 +92,7 @@
 <body>
     <div class="container">
         <div class="header-bar">
-            <img src="img/favicon.png" alt="Logo">
+            <img src="/img/favicon.png" alt="Logo">
             <a href="index.html?action=restore" class="back-link">&larr; 返回編輯器</a>
         </div>
         <h1>功能說明</h1>
@@ -137,15 +136,6 @@
     <footer>
         © 2025 Wayne Chang (w/ Gemini CLI)
     </footer>
-    <script>
-        // Apply dark mode if it was set on the main page
-        const savedTheme = localStorage.getItem("theme") || "light";
-        if (savedTheme === "dark") {
-            document.body.classList.add("dark-mode");
-        }
-    </script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
-    <script src="stats.js?v=0.1.4"></script>
+    <script type="module" src="/src/description.js"></script>
 </body>
 </html>

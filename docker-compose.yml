@@ -1,0 +1,12 @@
+version: '3.8'
+services:
+  web-liu:
+    build:
+      context: .
+      args:
+        # Change this number to force a rebuild/re-clone of the git repo
+        CACHEBUST: 1
+    ports:
+      - "8080:80" # Maps localhost:8080 to container:80
+    restart: always
+    container_name: web-liu-apache

@@ -1,4 +1,4 @@
-const boshiamyData = {
+export const boshiamyData = {
     "a": "對",
     "aa": "寸丶",
     "aaa": "鑫龘鑆",
