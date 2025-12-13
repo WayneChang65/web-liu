@@ -23,8 +23,6 @@ RUN npm run build
 # Stage 2: Serve the application with Apache (httpd)
 FROM httpd:2.4-alpine
 
-USER daemon
-
 # Remove default apache index.html
 RUN rm -rf /usr/local/apache2/htdocs/*
 
@@ -33,3 +31,6 @@ COPY --from=builder /app/dist /usr/local/apache2/htdocs/
 
 # Expose port 80
 EXPOSE 80
+
+# Apache will run as root by default in this image.
+# No USER directive means it stays as root.
