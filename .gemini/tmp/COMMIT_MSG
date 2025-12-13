@@ -1,0 +1,3 @@
+fix(docker): Remove package-lock.json before install to fix build
+
+Added a step to remove `package-lock.json` in the Dockerfile before `npm install`. This resolves cross-platform compatibility issues with optional dependencies (specifically `@rollup/rollup-linux-x64-musl`) which caused the build to fail on Linux environments when using a lockfile generated on macOS.

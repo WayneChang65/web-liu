@@ -14,6 +14,10 @@ ARG CACHEBUST=1
 # We clone into the current directory (.)
 RUN git clone -b master https://github.com/WayneChang65/web-liu.git .
 
+# Remove package-lock.json and node_modules to ensure a clean install for the correct platform
+RUN rm -rf node_modules
+RUN rm package-lock.json
+
 # Install dependencies
 RUN npm install
 

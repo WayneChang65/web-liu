@@ -1,12 +1,29 @@
-version: '3.8'
+#version: "3"
 services:
-  web-liu:
-    build:
-      context: .
-      args:
-        # Change this number to force a rebuild/re-clone of the git repo
-        CACHEBUST: 1
-    ports:
-      - "8080:80" # Maps localhost:8080 to container:80
-    restart: always
-    container_name: web-liu-apache
+  liu-web:
+    image: wayne/liu-web:0.2.0
+    hostname: liu-web
+    restart: unless-stopped
+    container_name: liu-web
+    env_file: .env
+    stdin_open: true
+    tty: true
+
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.liu-web.entrypoints=websecure"
+      - "traefik.http.routers.liu-web.rule=Host(`liu.$MY_DOMAIN`)"
+      - "traefik.http.routers.liu-web.tls.certresolver=lets-encr"
+      - "traefik.http.services.liu-web.loadBalancer.server.port=80"
+      - "traefik.http.routers.liu-web.middlewares=authelia@docker"
+
+    volumes:
+      - ./data/db:/usr/local/apache2/htdocs/db:ro
+
+#   ports:
+#     - 8084:80
+
+networks:
+  default:
+    external: true
+    name: $DEFAULT_NETWORK
