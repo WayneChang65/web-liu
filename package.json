@@ -6,7 +6,6 @@
   "dependencies": {
     "esbuild": "^0.25.12",
     "fdir": "^6.5.0",
-    "firebase": "^12.6.0",
     "nanoid": "^3.3.11",
     "picocolors": "^1.1.1",
     "picomatch": "^4.0.3",
@@ -25,7 +24,11 @@
     "type": "git",
     "url": "git+https://github.com/WayneChang65/web-liu.git"
   },
-  "keywords": ["LIU", "boshiamy", "Web"],
+  "keywords": [
+    "LIU",
+    "boshiamy",
+    "Web"
+  ],
   "author": "Wayne Chang",
   "license": "MIT",
   "bugs": {

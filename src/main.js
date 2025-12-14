@@ -1,9 +1,6 @@
 import './style.css';
 import { boshiamyData } from './boshiamy-data.js';
-import { initStats } from './stats.js';
 import TurndownService from 'turndown';
-
-initStats();
 
 const mainEditor = document.getElementById("main-editor");
 const imeBar = document.getElementById("ime-bar");
