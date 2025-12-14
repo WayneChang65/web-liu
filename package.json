@@ -25,9 +25,9 @@
     "type": "git",
     "url": "git+https://github.com/WayneChang65/web-liu.git"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "keywords": ["LIU", "boshiamy", "Web"],
+  "author": "Wayne Chang",
+  "license": "MIT",
   "bugs": {
     "url": "https://github.com/WayneChang65/web-liu/issues"
   },

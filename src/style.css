@@ -149,7 +149,7 @@ h1 {
 /* --- Unified Button Styles --- */
 
 #copy-button, #zoom-in-button, #zoom-out-button, #save-md-button,
-#restore-button, #description-button, #immersive-toggle-button, #theme-toggle-button {
+#restore-button, #save-temp-button, #description-button, #immersive-toggle-button, #theme-toggle-button {
     padding: 8px 15px;
     font-size: 0.9rem;
     font-family: inherit;
@@ -161,18 +161,18 @@ h1 {
 }
 
 #copy-button:hover, #zoom-in-button:hover, #zoom-out-button:hover, #save-md-button:hover,
-#restore-button:hover, #description-button:hover, #immersive-toggle-button:hover, #theme-toggle-button:hover {
+#restore-button:hover, #save-temp-button:hover, #description-button:hover, #immersive-toggle-button:hover, #theme-toggle-button:hover {
     transform: translateY(-1px);
     box-shadow: 0 4px 8px rgba(0,0,0,0.05);
 }
 
 /* Action Buttons (Tertiary) */
-#copy-button, #save-md-button, #restore-button {
+#copy-button, #save-md-button, #restore-button, #save-temp-button {
     background-color: #eff6ff; /* Light blue */
     color: #3b82f6; /* Accent blue */
     border: 1px solid #dbeafe;
 }
-#copy-button:hover, #save-md-button:hover, #restore-button:hover {
+#copy-button:hover, #save-md-button:hover, #restore-button:hover, #save-temp-button:hover {
     background-color: #dbeafe;
     border-color: #bfdbfe;
 }
@@ -300,7 +300,8 @@ body.dark-mode #mode-indicator {
 /* Action Buttons (Glowing Outline) */
 body.dark-mode #copy-button,
 body.dark-mode #save-md-button,
-body.dark-mode #restore-button {
+body.dark-mode #restore-button,
+body.dark-mode #save-temp-button {
     background-color: transparent;
     color: #22d3ee;
     border: 1px solid #22d3ee;
@@ -308,7 +309,8 @@ body.dark-mode #restore-button {
 }
 body.dark-mode #copy-button:hover,
 body.dark-mode #save-md-button:hover,
-body.dark-mode #restore-button:hover {
+body.dark-mode #restore-button:hover,
+body.dark-mode #save-temp-button:hover {
     background-color: rgba(34, 211, 238, 0.1);
     box-shadow: 0 0 8px rgba(34, 211, 238, 0.6);
 }
@@ -462,7 +464,7 @@ body.dark-mode .mode-text.disabled {
   color: #fecaca; /* Light red */
 }
 
-#restore-button:disabled {
+#restore-button:disabled, #save-temp-button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
   pointer-events: none; /* Prevents hover effects */

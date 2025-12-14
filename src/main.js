@@ -19,6 +19,7 @@ const zoomInButton = document.getElementById("zoom-in-button");
 const zoomOutButton = document.getElementById("zoom-out-button");
 const saveMdButton = document.getElementById("save-md-button");
 const restoreButton = document.getElementById("restore-button");
+const saveTempButton = document.getElementById("save-temp-button");
 const buttonContainer = document.querySelector(".button-container");
 const buttonToggle = document.getElementById("button-toggle");
 const editorTabs = document.getElementById("editor-tabs");
@@ -33,6 +34,7 @@ let editorContents = {
   2: "",
   3: "",
 };
+
 
 let inputBuffer = "";
 let candidates = [];
@@ -54,29 +56,6 @@ let currentFontSize =
   parseFloat(localStorage.getItem("boshiamy-font-size")) || 1.2;
 let inactivityTimer;
 let zoomInterval = null;
-let persistentSaveListenersAttached = false;
-
-function attachPersistentSaveListeners() {
-  if (persistentSaveListenersAttached) return;
-
-  // Ensure content is saved when the user leaves the page
-  document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "hidden") {
-      autoSaveChanges();
-    }
-  });
-
-  persistentSaveListenersAttached = true;
-}
-
-// --- DEBOUNCE UTILITY ---
-function debounce(func, delay) {
-  let timeout;
-  return function (...args) {
-    clearTimeout(timeout);
-    timeout = setTimeout(() => func.apply(this, args), delay);
-  };
-}
 
 // --- TURNDOWN SERVICE INITIALIZATION ---
 const turndownService = new TurndownService({ headingStyle: "atx" });
@@ -241,6 +220,7 @@ themeToggleButton.addEventListener("click", () => {
   const newTheme = isDarkMode ? "dark" : "light";
   localStorage.setItem("theme", newTheme);
   applyTheme(newTheme);
+  topButtonContainer.classList.remove("expanded"); // Close menu after action
 });
 
 // Apply saved theme on load
@@ -288,6 +268,7 @@ immersiveToggleButton.addEventListener("click", () => {
     clearTimeout(inactivityTimer);
     removeActivityListeners();
   }
+  topButtonContainer.classList.remove("expanded"); // Close menu after action
 });
 
 buttonToggle.addEventListener("click", () => {
@@ -921,9 +902,7 @@ mainEditor.addEventListener("paste", (e) => {
     }
     
     // Trigger save after paste
-    updateRestoreButtonState();
-    debouncedSave();
-    attachPersistentSaveListeners();
+    // Manual save only - no auto save
   });
 });
 
@@ -963,41 +942,45 @@ saveMdButton.addEventListener("click", () => {
   }
 });
 
-// --- AUTOSAVE AND RESTORE LOGIC ---
+// --- MANUAL SAVE AND RESTORE LOGIC ---
 function getStorageKey(id) {
   return `boshiamy-editor-content-${id}`;
 }
 
 function updateRestoreButtonState() {
-  const isEditorEmpty = mainEditor.innerText.trim() === "";
-  const hasSavedContent = !!localStorage.getItem(
-    getStorageKey(currentEditorId)
-  );
-  restoreButton.disabled = !isEditorEmpty || !hasSavedContent;
+  // Check if there is saved content in localStorage for the current editor
+  const hasSavedContent = !!localStorage.getItem(getStorageKey(currentEditorId));
+  // Enable restore button only if there is saved content
+  restoreButton.disabled = !hasSavedContent;
 }
 
-const autoSaveChanges = () => {
-  const content = mainEditor.innerHTML;
-  editorContents[currentEditorId] = content; // Update in-memory cache
-  localStorage.setItem(getStorageKey(currentEditorId), content);
-  updateRestoreButtonState(); // Update button state after saving
-};
-
-// Debounce the save function to avoid excessive writes
-const debouncedSave = debounce(autoSaveChanges, 500);
-
 mainEditor.addEventListener("keyup", () => {
-  updateRestoreButtonState();
-  debouncedSave();
-  attachPersistentSaveListeners(); // Activate aggressive save on first interaction
   ensureCursorIsVisible();
+  // We don't update button state on keyup anymore because restore availability 
+  // depends on localStorage, which doesn't change on keyup (only on manual save).
 });
 
+// Manual Save Button
+saveTempButton.addEventListener("click", () => {
+  const content = mainEditor.innerHTML;
+  localStorage.setItem(getStorageKey(currentEditorId), content);
+  updateRestoreButtonState();
+
+  // Provide user feedback
+  const originalText = saveTempButton.textContent;
+  saveTempButton.textContent = "已存入！";
+  setTimeout(() => {
+    saveTempButton.textContent = originalText;
+  }, 2000);
+  topButtonContainer.classList.remove("expanded"); // Close menu after action
+});
+
+// Manual Restore Button
 restoreButton.addEventListener("click", () => {
   const savedContent = localStorage.getItem(getStorageKey(currentEditorId));
   if (savedContent) {
     mainEditor.innerHTML = savedContent;
-    updateRestoreButtonState(); // Disable button after restoring
+    editorContents[currentEditorId] = savedContent; // Update memory cache
 
     // Provide user feedback
     const originalText = restoreButton.textContent;
@@ -1006,6 +989,25 @@ restoreButton.addEventListener("click", () => {
       restoreButton.textContent = originalText;
     }, 2000);
   }
+  topButtonContainer.classList.remove("expanded"); // Close menu after action
+});
+
+const descriptionButton = document.getElementById("description-button");
+
+// --- DESCRIPTION BUTTON LOGIC ---
+descriptionButton.addEventListener("click", (e) => {
+    e.preventDefault();
+    const targetUrl = descriptionButton.href;
+
+    const shouldSave = confirm("是否暫存目前編輯區的資料，否則等會回來，可能會遺失？\n\n按「確定」存入暫存並前往說明頁。\n按「取消」不暫存直接前往說明頁。");
+
+    if (shouldSave) {
+        const content = mainEditor.innerHTML;
+        localStorage.setItem(getStorageKey(currentEditorId), content);
+        updateRestoreButtonState();
+    }
+
+    window.location.href = targetUrl;
 });
 
 // Update IME bar position whenever the cursor/selection moves
