@@ -1,6 +1,8 @@
 import './style.css';
 import { boshiamyData } from './boshiamy-data.js';
 import TurndownService from 'turndown';
+import { lookupCandidates, selectByDigit, resolveSpaceCommit } from './ime.js';
+import { applyEditorContent, sanitizeEditorHtml } from './sanitize.js';
 
 const mainEditor = document.getElementById("main-editor");
 const imeBar = document.getElementById("ime-bar");
@@ -24,6 +26,48 @@ const topButtonContainer = document.getElementById("top-button-container");
 const topButtonToggle = document.getElementById("top-button-toggle");
 const logoContainer = document.getElementById("logo-container");
 const logoImage = logoContainer.querySelector("img");
+const modeTextEl = document.getElementById("mode-text");
+const fontSizeIndicatorEl = document.getElementById("font-size-indicator");
+const toastEl = document.getElementById("toast");
+
+// --- USER FEEDBACK (TOAST) ---
+let toastTimer;
+function showToast(message) {
+  if (!toastEl) return;
+  toastEl.textContent = message;
+  toastEl.classList.add("visible");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toastEl.classList.remove("visible"), 3000);
+}
+
+// H4: localStorage.setItem throws QuotaExceededError on large documents;
+// a failed save must never fail silently.
+function safeSetItem(key, value) {
+  try {
+    localStorage.setItem(key, value);
+    return true;
+  } catch (err) {
+    console.error("localStorage.setItem failed:", err);
+    showToast("暫存失敗：瀏覽器儲存空間不足，請縮短內容後再試。");
+    return false;
+  }
+}
+
+// L4: ":empty" stops matching once the editor holds leftover nodes (a lone
+// <br>, or empty <div> wrappers after pressing Enter), so track "visually
+// empty" via a data attribute instead.
+function updatePlaceholderState() {
+  const html = mainEditor.innerHTML;
+  const effectivelyEmpty =
+    html === "" ||
+    /^<br\s*\/?>$/i.test(html) ||
+    /^(\s*<div>\s*<br\s*\/?>\s*<\/div>\s*)+$/i.test(html);
+  if (effectivelyEmpty) {
+    mainEditor.setAttribute("data-empty", "");
+  } else {
+    mainEditor.removeAttribute("data-empty");
+  }
+}
 
 let currentEditorId = parseInt(localStorage.getItem("boshiamy-active-tab")) || 1;
 let editorContents = {
@@ -215,7 +259,7 @@ function applyTheme(theme) {
 themeToggleButton.addEventListener("click", () => {
   const isDarkMode = document.body.classList.toggle("dark-mode");
   const newTheme = isDarkMode ? "dark" : "light";
-  localStorage.setItem("theme", newTheme);
+  safeSetItem("theme", newTheme);
   applyTheme(newTheme);
   topButtonContainer.classList.remove("expanded"); // Close menu after action
 });
@@ -293,20 +337,25 @@ document.addEventListener("click", (event) => {
 });
 
 // --- FONT SIZE LOGIC ---
+const MIN_FONT_SIZE = 0.5;
+// L3: cap the zoom so the editor can't grow without bound.
+const MAX_FONT_SIZE = 3;
+
 function updateFontSize() {
   mainEditor.style.fontSize = `${currentFontSize}rem`;
-  localStorage.setItem("boshiamy-font-size", currentFontSize);
+  safeSetItem("boshiamy-font-size", currentFontSize);
   updateModeIndicator();
 }
 
 const zoomIn = () => {
-  currentFontSize += 0.1;
+  if (currentFontSize >= MAX_FONT_SIZE) return;
+  currentFontSize = Math.round((currentFontSize + 0.1) * 10) / 10;
   updateFontSize();
 };
 
 const zoomOut = () => {
-  if (currentFontSize > 0.5) {
-    currentFontSize -= 0.1;
+  if (currentFontSize > MIN_FONT_SIZE) {
+    currentFontSize = Math.round((currentFontSize - 0.1) * 10) / 10;
     updateFontSize();
   }
 };
@@ -366,7 +415,7 @@ function toggleImeMode() {
   
   // If not disabled, we save the mode. If disabled, we keep 'disabled' in storage.
   if (imeMode !== "disabled") {
-      localStorage.setItem("boshiamy-ime-mode", imeMode);
+      safeSetItem("boshiamy-ime-mode", imeMode);
   }
   
   clearImeState();
@@ -382,7 +431,7 @@ function toggleDisabledMode() {
     lastActiveImeMode = imeMode;
     imeMode = "disabled";
   }
-  localStorage.setItem("boshiamy-ime-mode", imeMode);
+  safeSetItem("boshiamy-ime-mode", imeMode);
   clearImeState();
   updateModeIndicator();
   updateLogoState();
@@ -399,13 +448,20 @@ function updateLogoState() {
 }
 
 modeIndicator.addEventListener("click", toggleImeMode);
+// L7: make the mode indicator keyboard-operable (role="button" in HTML).
+modeIndicator.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" || e.key === " ") {
+    e.preventDefault();
+    toggleImeMode();
+  }
+});
 logoContainer.addEventListener("click", toggleDisabledMode);
 
 mainEditor.addEventListener("keydown", handleKeyDown);
 
 function updateModeIndicator() {
-  let modeText = "";
-  let modeClass = "";
+  let modeText;
+  let modeClass;
 
   if (imeMode === "boshiamy") {
     modeText = "嘸蝦米模式";
@@ -419,7 +475,10 @@ function updateModeIndicator() {
   }
 
   const fontSizeDisplay = Math.round(currentFontSize * 10);
-  modeIndicator.innerHTML = `<span class="mode-text ${modeClass}">${modeText}</span> (Ctrl+p 切換)<span class="font-size-indicator">, 字型大小：${fontSizeDisplay}</span>`;
+  // L10: update text/classes directly instead of rebuilding innerHTML.
+  modeTextEl.textContent = modeText;
+  modeTextEl.className = `mode-text ${modeClass}`;
+  fontSizeIndicatorEl.textContent = `, 字型大小：${fontSizeDisplay}`;
 }
 
 function handleKeyDown(e) {
@@ -461,29 +520,32 @@ function handleKeyDown(e) {
   }
 
   if (imeMode === "boshiamy") {
-    const validChars = /^[a-z,.'\[\]vrsf]$/;
+    const validChars = /^[a-z,.'[\]vrsf]$/;
 
     if (validChars.test(key.toLowerCase())) {
       e.preventDefault();
       inputBuffer += key.toLowerCase();
-      const results = boshiamyData[inputBuffer];
-      candidates = results ? results.split("") : [];
+      // H1: Object.hasOwn lookup — typing "constructor" must not crash.
+      candidates = lookupCandidates(boshiamyData, inputBuffer);
       currentPage = 0;
       updateImeDisplay();
     } else if (key >= "0" && key <= "9" && candidates.length > 0) {
       e.preventDefault();
-      const pageIndex = parseInt(key, 10);
-      const realIndex = currentPage * pageSize + pageIndex;
-      if (realIndex < candidates.length) {
-        commitText(candidates[realIndex]);
+      const char = selectByDigit(
+        candidates,
+        currentPage,
+        pageSize,
+        parseInt(key, 10)
+      );
+      if (char !== null) {
+        commitText(char);
       }
     } else if (key === "Backspace") {
       if (inputBuffer.length > 0) {
         // If the IME buffer has content, we handle it and prevent default browser action.
         e.preventDefault();
         inputBuffer = inputBuffer.slice(0, -1);
-        const results = boshiamyData[inputBuffer];
-        candidates = results ? results.split("") : [];
+        candidates = lookupCandidates(boshiamyData, inputBuffer);
         currentPage = 0;
         updateImeDisplay();
       }
@@ -497,38 +559,10 @@ function handleKeyDown(e) {
       // If we're here, the buffer is not empty, so we handle IME logic.
       e.preventDefault();
 
-      const selectorMap = {
-        v: 1, // Selects candidate at index 1
-        r: 2, // Selects candidate at index 2
-        s: 3, // Selects candidate at index 3
-        f: 4, // Selects candidate at index 4
-      };
-      const lastChar = inputBuffer.slice(-1);
-
-      if (inputBuffer.length > 1 && selectorMap.hasOwnProperty(lastChar)) {
-        const bufferHasCandidates = boshiamyData.hasOwnProperty(inputBuffer);
-
-        if (!bufferHasCandidates) {
-          // The buffer itself is not a valid code, so treat lastChar as a selector.
-          const root = inputBuffer.slice(0, -1);
-          const candidateIndex = selectorMap[lastChar];
-          const rootHasCandidates =
-            boshiamyData.hasOwnProperty(root) &&
-            boshiamyData[root].length > candidateIndex;
-
-          if (rootHasCandidates) {
-            const rootCandidates = boshiamyData[root];
-            commitText(rootCandidates.split("")[candidateIndex]);
-          } else {
-            clearImeState();
-          }
-          return;
-        }
-        // If bufferHasCandidates is true, we fall through to the default space logic below.
-      }
-
-      if (candidates.length > 0) {
-        commitText(candidates[0]);
+      // H1/M4: selection rules live in the pure, unit-tested resolveSpaceCommit.
+      const char = resolveSpaceCommit(boshiamyData, inputBuffer);
+      if (char !== null) {
+        commitText(char);
       } else {
         clearImeState();
       }
@@ -751,8 +785,8 @@ editorTabs.addEventListener("click", (e) => {
   const newEditorId = parseInt(target.dataset.editor, 10);
   if (newEditorId === currentEditorId) return;
 
-  // 1. Save current editor's content to memory
-  editorContents[currentEditorId] = mainEditor.innerHTML;
+  // 1. Save current editor's content to memory (sanitized, like the restore path)
+  editorContents[currentEditorId] = sanitizeEditorHtml(mainEditor.innerHTML);
 
   // 2. Update active button in UI
   const currentActive = editorTabs.querySelector(".active");
@@ -763,13 +797,14 @@ editorTabs.addEventListener("click", (e) => {
 
   // 3. Switch to the new editor
   currentEditorId = newEditorId;
-  localStorage.setItem("boshiamy-active-tab", currentEditorId);
+  safeSetItem("boshiamy-active-tab", currentEditorId);
 
-  // 4. Load new editor's content from memory
-  mainEditor.innerHTML = editorContents[currentEditorId] || "";
+  // 4. Load new editor's content from memory (H3: re-sanitize as defense-in-depth)
+  applyEditorContent(mainEditor, editorContents[currentEditorId] || "");
 
   // 5. Update UI states for the new editor
   updateRestoreButtonState();
+  updatePlaceholderState();
   mainEditor.focus();
 });
 
@@ -777,8 +812,11 @@ editorTabs.addEventListener("click", (e) => {
 function autoRestore(editorId) {
   const savedContent = localStorage.getItem(getStorageKey(editorId));
   if (savedContent) {
-    mainEditor.innerHTML = savedContent;
-    editorContents[editorId] = savedContent; // Prime the in-memory cache
+    // H3: stored content is untrusted — allowlist before it reaches the DOM.
+    const clean = sanitizeEditorHtml(savedContent);
+    applyEditorContent(mainEditor, clean);
+    editorContents[editorId] = clean; // Prime the in-memory cache
+    updatePlaceholderState();
   }
 }
 
@@ -795,6 +833,7 @@ mainEditor.focus();
 updateModeIndicator();
 updateLogoState();
 updateFontSize(); // Set initial font size
+updatePlaceholderState();
 
 // Check if returning from description page
 const urlParams = new URLSearchParams(window.location.search);
@@ -863,6 +902,10 @@ mainEditor.addEventListener("paste", (e) => {
   selection.removeAllRanges();
   selection.addRange(range);
 
+  // M3: drop any half-typed boshiamy code so the next keystroke doesn't
+  // continue a stale buffer.
+  clearImeState();
+
   // After pasting, use a hybrid approach to ensure the caret is visible.
 
   requestAnimationFrame(() => {
@@ -915,7 +958,7 @@ saveMdButton.addEventListener("click", () => {
 
     // Create a Blob from the Markdown string
 
-    const blob = new Blob([markdown], { type: "text/markdown;charset=utf-t" });
+    const blob = new Blob([markdown], { type: "text/markdown;charset=utf-8" });
 
     // Create a temporary link element to trigger the download
 
@@ -957,15 +1000,21 @@ mainEditor.addEventListener("keyup", () => {
   // depends on localStorage, which doesn't change on keyup (only on manual save).
 });
 
+mainEditor.addEventListener("input", updatePlaceholderState);
+
 // Manual Save Button
 saveTempButton.addEventListener("click", () => {
-  const content = mainEditor.innerHTML;
-  localStorage.setItem(getStorageKey(currentEditorId), content);
-  updateRestoreButtonState();
+  // H3: store an allowlisted copy so a polluted editor can't persist markup.
+  const content = sanitizeEditorHtml(mainEditor.innerHTML);
+  // H4: quota errors surface as toast + button feedback, not silence.
+  const saved = safeSetItem(getStorageKey(currentEditorId), content);
+  if (saved) {
+    updateRestoreButtonState();
+  }
 
   // Provide user feedback
   const originalText = saveTempButton.textContent;
-  saveTempButton.textContent = "已存入！";
+  saveTempButton.textContent = saved ? "已存入！" : "暫存失敗";
   setTimeout(() => {
     saveTempButton.textContent = originalText;
   }, 2000);
@@ -976,8 +1025,11 @@ saveTempButton.addEventListener("click", () => {
 restoreButton.addEventListener("click", () => {
   const savedContent = localStorage.getItem(getStorageKey(currentEditorId));
   if (savedContent) {
-    mainEditor.innerHTML = savedContent;
-    editorContents[currentEditorId] = savedContent; // Update memory cache
+    // H3: stored content is untrusted — allowlist before it reaches the DOM.
+    const clean = sanitizeEditorHtml(savedContent);
+    applyEditorContent(mainEditor, clean);
+    editorContents[currentEditorId] = clean; // Update memory cache
+    updatePlaceholderState();
 
     // Provide user feedback
     const originalText = restoreButton.textContent;
@@ -994,17 +1046,17 @@ const descriptionButton = document.getElementById("description-button");
 // --- DESCRIPTION BUTTON LOGIC ---
 descriptionButton.addEventListener("click", (e) => {
     e.preventDefault();
-    const targetUrl = descriptionButton.href;
 
     const shouldSave = confirm("是否暫存目前編輯區的資料，否則等會回來，可能會遺失？\n\n按「確定」存入暫存並前往說明頁。\n按「取消」不暫存直接前往說明頁。");
 
     if (shouldSave) {
-        const content = mainEditor.innerHTML;
-        localStorage.setItem(getStorageKey(currentEditorId), content);
+        const content = sanitizeEditorHtml(mainEditor.innerHTML);
+        safeSetItem(getStorageKey(currentEditorId), content);
         updateRestoreButtonState();
     }
 
-    window.location.href = targetUrl;
+    // Fixed relative target — same-origin by construction, no redirect surface.
+    window.location.assign("description.html");
 });
 
 // Update IME bar position whenever the cursor/selection moves

@@ -1,7 +1,7 @@
-@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap');
-
+/* M8: 不再從 Google Fonts 同步載入字型（渲染阻斷 + 繁中地區可能慢/不可達）。
+   改用系統字型優先序；若本機裝有 Noto Sans TC 也會被使用。 */
 body {
-    font-family: 'Noto Sans TC', sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang TC", "Hiragino Sans", "Microsoft JhengHei", "Heiti TC", "Noto Sans TC", "Helvetica Neue", Arial, sans-serif;
     background-color: #ffffff;
     color: #1f2937;
     display: flex;
@@ -53,7 +53,9 @@ h1 {
 }
 
 /* Replicate placeholder for contenteditable div */
-#main-editor:empty::before {
+/* L4: :empty 在按過 Enter 後失效（只剩 <br>），data-empty 由 JS 維持 */
+#main-editor:empty::before,
+#main-editor[data-empty]::before {
     content: attr(placeholder);
     color: #9ca3af;
     pointer-events: none;
@@ -556,4 +558,32 @@ body.dark-mode footer {
 body.immersive-mode footer {
     margin-top: -1.5rem;
     margin-bottom: 0.5rem;
+}
+
+/* --- Toast (H4: 暫存失敗等提示必須對使用者可見) --- */
+#toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translate(-50%, 10px);
+    background-color: #1f2937;
+    color: #ffffff;
+    padding: 10px 18px;
+    border-radius: 0.5rem;
+    font-size: 0.9rem;
+    max-width: 80vw;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
+    z-index: 1002;
+}
+
+#toast.visible {
+    opacity: 1;
+    transform: translate(-50%, 0);
+}
+
+body.dark-mode #toast {
+    background-color: #22d3ee;
+    color: #000000;
 }

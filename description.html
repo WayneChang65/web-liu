@@ -4,11 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>功能說明 - 線上嘸蝦米編輯器(小青網蝦)</title>
-    <link rel="icon" href="/img/favicon.png" type="image/png">
-    <link rel="apple-touch-icon" href="/img/favicon.png">
+    <!-- H3: second line of defense against stored XSS — scripts only from self -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'self'">
+    <link rel="icon" type="image/x-icon" href="/img/favicon.ico">
+    <link rel="icon" type="image/png" sizes="512x512" href="/img/favicon.png">
+    <link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
     <style>
-        body {
-        }
         .container {
             text-align: left !important;
             padding-top: 2rem;
@@ -51,17 +52,6 @@
             padding-left: 20px;
         }
 
-        .stats-container {
-            text-align: center;
-            margin-top: 3rem;
-            padding-top: 1.5rem;
-            border-top: 1px solid #d1d5db;
-            display: flex;
-            justify-content: center;
-            gap: 2rem;
-            color: #6b7280;
-        }
-
         /* Dark Mode Overrides for this page */
         body.dark-mode .header-bar img {
             filter: invert(1) hue-rotate(180deg);
@@ -79,10 +69,6 @@
         body.dark-mode h3 {
             color: #22d3ee;
             text-shadow: 0 0 6px rgba(34, 211, 238, 0.4);
-        }
-        body.dark-mode .stats-container {
-            border-top-color: #334155;
-            color: #94a3b8;
         }
         footer {
             margin-top: 0.5rem;

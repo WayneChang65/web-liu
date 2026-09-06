@@ -4,8 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>線上嘸蝦米編輯器(小青網蝦)</title>
-    <link rel="icon" href="/img/favicon.png" type="image/png">
-    <link rel="apple-touch-icon" href="/img/favicon.png">
+    <!-- H3: second line of defense against stored XSS — scripts only from self -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'self'">
+    <link rel="icon" type="image/x-icon" href="/img/favicon.ico">
+    <link rel="icon" type="image/png" sizes="512x512" href="/img/favicon.png">
+    <link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
 </head>
 <body>
     <div id="logo-container">
@@ -32,11 +35,13 @@
                 <button class="tab-button" data-editor="2">2</button>
                 <button class="tab-button" data-editor="3">3</button>
             </div>
-            <div id="mode-indicator"></div>
+            <div id="mode-indicator" role="button" tabindex="0" aria-label="輸入法模式">
+                <span id="mode-text" class="mode-text boshiamy">嘸蝦米模式</span> (Ctrl+p 切換)<span id="font-size-indicator" class="font-size-indicator">, 字型大小：12</span>
+            </div>
         </div>
         <div id="ime-container">
-            <div id="main-editor" contenteditable="true" placeholder="開始打字..."></div>
-            <div id="ime-bar">
+            <div id="main-editor" contenteditable="true" role="textbox" aria-multiline="true" aria-label="嘸蝦米編輯區" placeholder="開始打字..."></div>
+            <div id="ime-bar" aria-live="polite">
                 <span id="input-buffer"></span>
                 <span id="candidate-list"></span>
             </div>
@@ -52,6 +57,7 @@
     <footer>
         © 2025 Wayne Chang (w/ Gemini CLI)
     </footer>
+    <div id="toast" role="status"></div>
     <script type="module" src="/src/main.js"></script>
 </body>
 </html>
