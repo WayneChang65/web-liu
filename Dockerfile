@@ -14,12 +14,10 @@ ARG CACHEBUST=1
 # We clone into the current directory (.)
 RUN git clone -b master https://github.com/WayneChang65/web-liu.git .
 
-# Remove package-lock.json and node_modules to ensure a clean install for the correct platform
-RUN rm -rf node_modules
-RUN rm package-lock.json
-
-# Install dependencies
-RUN npm install
+# M6: install the exact dependency set from the committed lockfile.
+# npm's lockfile records every platform's optional deps, so `npm ci` is
+# portable across macOS/Linux — no need to delete the lockfile anymore.
+RUN npm ci
 
 # Build the project (Vite build)
 RUN npm run build
@@ -33,8 +31,21 @@ RUN rm -rf /usr/local/apache2/htdocs/*
 # Copy the built assets from the builder stage to Apache's default document root
 COPY --from=builder /app/dist /usr/local/apache2/htdocs/
 
-# Expose port 80
-EXPOSE 80
+# M6: run as the unprivileged 'daemon' user. Non-root cannot bind port 80,
+# so Apache listens on 8088 (updated in docker-compose service port).
+RUN sed -i 's/^Listen 80$/Listen 8088/' /usr/local/apache2/conf/httpd.conf \
+    && chown -R daemon:daemon /usr/local/apache2/htdocs
 
-# Apache will run as root by default in this image.
-# No USER directive means it stays as root.
+# M6: security headers (CSP itself ships as a <meta> tag in the HTML pages)
+RUN { \
+      echo '<IfModule mod_headers.c>'; \
+      echo '  Header always set X-Content-Type-Options "nosniff"'; \
+      echo '  Header always set X-Frame-Options "DENY"'; \
+      echo '  Header always set Referrer-Policy "strict-origin-when-cross-origin"'; \
+      echo '  Header always set Cross-Origin-Opener-Policy "same-origin"'; \
+      echo '</IfModule>'; \
+    } >> /usr/local/apache2/conf/httpd.conf
+
+USER daemon
+
+EXPOSE 8088

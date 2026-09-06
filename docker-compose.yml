@@ -1,4 +1,3 @@
-#version: "3"
 services:
   liu-web:
     image: wayne/liu-web:0.2.0
@@ -14,14 +13,12 @@ services:
       - "traefik.http.routers.liu-web.entrypoints=websecure"
       - "traefik.http.routers.liu-web.rule=Host(`liu.$MY_DOMAIN`)"
       - "traefik.http.routers.liu-web.tls.certresolver=lets-encr"
-      - "traefik.http.services.liu-web.loadBalancer.server.port=80"
       - "traefik.http.routers.liu-web.middlewares=authelia@docker"
-
-    volumes:
-      - ./data/db:/usr/local/apache2/htdocs/db:ro
+      # M6: httpd now runs as non-root on 8088 (see Dockerfile)
+      - "traefik.http.services.liu-web.loadBalancer.server.port=8088"
 
 #   ports:
-#     - 8084:80
+#     - 8084:8088
 
 networks:
   default:
