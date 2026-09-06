@@ -1,8 +1,8 @@
-import './style.css';
-import { boshiamyData } from './boshiamy-data.js';
-import TurndownService from 'turndown';
-import { lookupCandidates, selectByDigit, resolveSpaceCommit } from './ime.js';
-import { applyEditorContent, sanitizeEditorHtml } from './sanitize.js';
+import "./style.css";
+import { boshiamyData } from "./boshiamy-data.js";
+import TurndownService from "turndown";
+import { lookupCandidates, selectByDigit, resolveSpaceCommit } from "./ime.js";
+import { applyEditorContent, sanitizeEditorHtml } from "./sanitize.js";
 
 const mainEditor = document.getElementById("main-editor");
 const imeBar = document.getElementById("ime-bar");
@@ -12,7 +12,7 @@ const modeIndicator = document.getElementById("mode-indicator");
 const copyButton = document.getElementById("copy-button");
 const themeToggleButton = document.getElementById("theme-toggle-button");
 const immersiveToggleButton = document.getElementById(
-  "immersive-toggle-button"
+  "immersive-toggle-button",
 );
 const zoomInButton = document.getElementById("zoom-in-button");
 const zoomOutButton = document.getElementById("zoom-out-button");
@@ -62,33 +62,35 @@ function updatePlaceholderState() {
     html === "" ||
     /^<br\s*\/?>$/i.test(html) ||
     /^(\s*<div>\s*<br\s*\/?>\s*<\/div>\s*)+$/i.test(html);
-  if (effectivelyEmpty) {
+  // While the IME buffer holds a code, hide the placeholder too — the user is
+  // already typing even though nothing has been committed yet.
+  if (effectivelyEmpty && inputBuffer === "") {
     mainEditor.setAttribute("data-empty", "");
   } else {
     mainEditor.removeAttribute("data-empty");
   }
 }
 
-let currentEditorId = parseInt(localStorage.getItem("boshiamy-active-tab")) || 1;
+let currentEditorId =
+  parseInt(localStorage.getItem("boshiamy-active-tab")) || 1;
 let editorContents = {
   1: "",
   2: "",
   3: "",
 };
 
-
 let inputBuffer = "";
 let candidates = [];
 let currentPage = 0;
 const pageSize = 10;
 let imeMode = localStorage.getItem("boshiamy-ime-mode") || "boshiamy";
-let lastActiveImeMode = "boshiamy"; 
+let lastActiveImeMode = "boshiamy";
 
-// Initialize lastActiveImeMode. 
+// Initialize lastActiveImeMode.
 // If we loaded in 'disabled' mode, default back to boshiamy for the "active" state,
 // or if we loaded in a normal mode, set that as active.
 if (imeMode === "disabled") {
-  lastActiveImeMode = "boshiamy"; 
+  lastActiveImeMode = "boshiamy";
 } else {
   lastActiveImeMode = imeMode;
 }
@@ -202,7 +204,7 @@ function changeSelectionFontSize(direction) {
   if (existingSpan) {
     // Case 1: We are inside a span we created. Modify it.
     const currentFontSize = parseFloat(
-      window.getComputedStyle(existingSpan).fontSize
+      window.getComputedStyle(existingSpan).fontSize,
     );
     const newSize =
       direction === "increase" ? currentFontSize + 1 : currentFontSize - 1;
@@ -404,7 +406,8 @@ function toggleImeMode() {
   // Ctrl-P logic: Only cycle between Boshiamy and English
   if (imeMode === "disabled") {
     // If currently disabled, we just toggle the "background" state
-    lastActiveImeMode = lastActiveImeMode === "boshiamy" ? "english" : "boshiamy";
+    lastActiveImeMode =
+      lastActiveImeMode === "boshiamy" ? "english" : "boshiamy";
     // We do NOT update imeMode here, preserving the "Disabled" state until logo is clicked.
     // Optional: You could choose to have Ctrl-P 'wake up' the editor, but strict interpretation
     // of "remove disabled from Ctrl-P" implies separating the concerns.
@@ -412,12 +415,12 @@ function toggleImeMode() {
     imeMode = imeMode === "boshiamy" ? "english" : "boshiamy";
     lastActiveImeMode = imeMode;
   }
-  
+
   // If not disabled, we save the mode. If disabled, we keep 'disabled' in storage.
   if (imeMode !== "disabled") {
-      safeSetItem("boshiamy-ime-mode", imeMode);
+    safeSetItem("boshiamy-ime-mode", imeMode);
   }
-  
+
   clearImeState();
   updateModeIndicator();
 }
@@ -438,13 +441,13 @@ function toggleDisabledMode() {
 }
 
 function updateLogoState() {
-    if (imeMode === "disabled") {
-        logoImage.classList.add('disabled-logo');
-        logoContainer.title = "點擊啟用輸入法";
-    } else {
-        logoImage.classList.remove('disabled-logo');
-        logoContainer.title = "點擊暫停輸入法 (無效模式)";
-    }
+  if (imeMode === "disabled") {
+    logoImage.classList.add("disabled-logo");
+    logoContainer.title = "點擊啟用輸入法";
+  } else {
+    logoImage.classList.remove("disabled-logo");
+    logoContainer.title = "點擊暫停輸入法 (無效模式)";
+  }
 }
 
 modeIndicator.addEventListener("click", toggleImeMode);
@@ -535,7 +538,7 @@ function handleKeyDown(e) {
         candidates,
         currentPage,
         pageSize,
-        parseInt(key, 10)
+        parseInt(key, 10),
       );
       if (char !== null) {
         commitText(char);
@@ -602,27 +605,34 @@ function updateImeBarPosition() {
   if (range.collapsed) {
     // For a collapsed range (a cursor), getBoundingClientRect can be unreliable.
     // We insert a temporary element to get a stable position.
+    // NOTE: insertNode() expands the live range to wrap the inserted node;
+    // re-adding that expanded range leaves a non-collapsed selection in
+    // Firefox, which swallows the next Backspace. Restore from a pristine
+    // clone instead.
+    const caret = range.cloneRange();
     const tempSpan = document.createElement("span");
     // Use a zero-width space to ensure the span has a layout
-    tempSpan.textContent = "​"; // Zero-width space
+    tempSpan.textContent = "\u200B"; // Zero-width space
     range.insertNode(tempSpan);
     effectiveRect = tempSpan.getBoundingClientRect();
     // Clean up the temporary element
     const parent = tempSpan.parentNode;
     if (parent) {
       parent.removeChild(tempSpan);
-      // Restore the original selection, which might have been modified
       parent.normalize(); // Merges adjacent text nodes
     }
     selection.removeAllRanges();
-    selection.addRange(range);
+    selection.addRange(caret);
   } else {
     // For a non-collapsed selection, the rect is usually fine.
     effectiveRect = range.getBoundingClientRect();
   }
 
   // If we couldn't get a valid rectangle, we can't position the bar.
-  if (!effectiveRect || (effectiveRect.width === 0 && effectiveRect.height === 0)) {
+  if (
+    !effectiveRect ||
+    (effectiveRect.width === 0 && effectiveRect.height === 0)
+  ) {
     return;
   }
 
@@ -637,14 +647,16 @@ function updateImeBarPosition() {
   // 1. Bar would overflow the visible editor area if placed below
   // 2. AND the cursor is on the last visible line (i.e., very close to the bottom of the visible editor)
   // 3. AND there's enough space above the cursor to place the bar
-  const isCursorOnLastTwoVisibleLines = (editorRect.bottom - effectiveRect.bottom < 1.5 * lineHeight);
+  const isCursorOnLastTwoVisibleLines =
+    editorRect.bottom - effectiveRect.bottom < 1.5 * lineHeight;
 
-  const shouldFlip = (top + imeBarHeight > mainEditor.clientHeight) &&
-                     isCursorOnLastTwoVisibleLines &&
-                     (effectiveRect.top - editorRect.top > imeBarHeight + 5); // 5px padding
+  const shouldFlip =
+    top + imeBarHeight > mainEditor.clientHeight &&
+    isCursorOnLastTwoVisibleLines &&
+    effectiveRect.top - editorRect.top > imeBarHeight + 5; // 5px padding
 
   if (shouldFlip) {
-      top = effectiveRect.top - editorRect.top - imeBarHeight - 5;
+    top = effectiveRect.top - editorRect.top - imeBarHeight - 5;
   }
 
   imeBar.style.top = `${Math.max(0, top)}px`;
@@ -667,13 +679,14 @@ function updateImeBarPosition() {
   // for a final boundary check to prevent it from overflowing the editor horizontally.
   requestAnimationFrame(() => {
     const imeBarRect = imeBar.getBoundingClientRect();
-    if (imeBarRect.right > editorRect.right - 5) { // 5px padding
-      imeBar.style.left = 'auto';
-      imeBar.style.right = '5px';
+    if (imeBarRect.right > editorRect.right - 5) {
+      // 5px padding
+      imeBar.style.left = "auto";
+      imeBar.style.right = "5px";
     }
     if (imeBarRect.left < editorRect.left + 5) {
-      imeBar.style.right = 'auto';
-      imeBar.style.left = '5px';
+      imeBar.style.right = "auto";
+      imeBar.style.left = "5px";
     }
   });
 }
@@ -687,8 +700,12 @@ function ensureCursorIsVisible() {
 
   let effectiveRect;
   if (range.collapsed) {
+    // insertNode() mutates the live range (see updateImeBarPosition) —
+    // restore from a pristine clone so Firefox doesn't keep a
+    // non-collapsed selection that eats the next Backspace.
+    const caret = range.cloneRange();
     const tempSpan = document.createElement("span");
-    tempSpan.textContent = "​"; // Zero-width space
+    tempSpan.textContent = "\u200B"; // Zero-width space
     range.insertNode(tempSpan);
     effectiveRect = tempSpan.getBoundingClientRect();
     const parent = tempSpan.parentNode;
@@ -697,12 +714,15 @@ function ensureCursorIsVisible() {
       parent.normalize();
     }
     selection.removeAllRanges();
-    selection.addRange(range);
+    selection.addRange(caret);
   } else {
     effectiveRect = range.getBoundingClientRect();
   }
 
-  if (!effectiveRect || (effectiveRect.width === 0 && effectiveRect.height === 0)) {
+  if (
+    !effectiveRect ||
+    (effectiveRect.width === 0 && effectiveRect.height === 0)
+  ) {
     return;
   }
 
@@ -717,6 +737,7 @@ function ensureCursorIsVisible() {
 }
 
 function updateImeDisplay() {
+  updatePlaceholderState();
   if (inputBuffer.length === 0) {
     imeBar.style.display = "none";
     return;
@@ -768,6 +789,10 @@ function commitText(char) {
   clearImeState();
   mainEditor.focus();
   ensureCursorIsVisible();
+  // Programmatic insertion doesn't fire the "input" event, so refresh the
+  // placeholder state manually (bug: committed first char stayed behind the
+  // "開始打字..." placeholder).
+  updatePlaceholderState();
 }
 
 function clearImeState() {
@@ -775,6 +800,7 @@ function clearImeState() {
   candidates = [];
   currentPage = 0;
   imeBar.style.display = "none";
+  updatePlaceholderState();
 }
 
 // --- EDITOR TAB LOGIC ---
@@ -823,10 +849,12 @@ function autoRestore(editorId) {
 // Initial setup
 // Update active tab button if needed
 if (currentEditorId !== 1) {
-  const defaultActive = editorTabs.querySelector('.active');
-  if (defaultActive) defaultActive.classList.remove('active');
-  const newActive = editorTabs.querySelector(`.tab-button[data-editor="${currentEditorId}"]`);
-  if (newActive) newActive.classList.add('active');
+  const defaultActive = editorTabs.querySelector(".active");
+  if (defaultActive) defaultActive.classList.remove("active");
+  const newActive = editorTabs.querySelector(
+    `.tab-button[data-editor="${currentEditorId}"]`,
+  );
+  if (newActive) newActive.classList.add("active");
 }
 
 mainEditor.focus();
@@ -914,6 +942,7 @@ mainEditor.addEventListener("paste", (e) => {
     if (!selection.rangeCount) return;
 
     const range = selection.getRangeAt(0);
+    const caret = range.cloneRange(); // insertNode() mutates the live range
 
     // 1. Insert a temporary element to get a reliable position.
 
@@ -924,6 +953,11 @@ mainEditor.addEventListener("paste", (e) => {
     const spanRect = tempSpan.getBoundingClientRect();
 
     tempSpan.parentNode.removeChild(tempSpan); // Clean up immediately
+
+    // Restore the pristine (collapsed) caret; the expanded live range would
+    // otherwise leave a non-collapsed selection that eats the next Backspace.
+    selection.removeAllRanges();
+    selection.addRange(caret);
 
     // 2. Perform the precise calculation using the reliable coordinates.
 
@@ -940,7 +974,7 @@ mainEditor.addEventListener("paste", (e) => {
     if (spanRect.bottom > visibleEditorBottom) {
       mainEditor.scrollTop += spanRect.bottom - visibleEditorBottom;
     }
-    
+
     // Trigger save after paste
     // Manual save only - no auto save
   });
@@ -989,14 +1023,16 @@ function getStorageKey(id) {
 
 function updateRestoreButtonState() {
   // Check if there is saved content in localStorage for the current editor
-  const hasSavedContent = !!localStorage.getItem(getStorageKey(currentEditorId));
+  const hasSavedContent = !!localStorage.getItem(
+    getStorageKey(currentEditorId),
+  );
   // Enable restore button only if there is saved content
   restoreButton.disabled = !hasSavedContent;
 }
 
 mainEditor.addEventListener("keyup", () => {
   ensureCursorIsVisible();
-  // We don't update button state on keyup anymore because restore availability 
+  // We don't update button state on keyup anymore because restore availability
   // depends on localStorage, which doesn't change on keyup (only on manual save).
 });
 
@@ -1045,23 +1081,25 @@ const descriptionButton = document.getElementById("description-button");
 
 // --- DESCRIPTION BUTTON LOGIC ---
 descriptionButton.addEventListener("click", (e) => {
-    e.preventDefault();
+  e.preventDefault();
 
-    const shouldSave = confirm("是否暫存目前編輯區的資料，否則等會回來，可能會遺失？\n\n按「確定」存入暫存並前往說明頁。\n按「取消」不暫存直接前往說明頁。");
+  const shouldSave = confirm(
+    "是否暫存目前編輯區的資料，否則等會回來，可能會遺失？\n\n按「確定」存入暫存並前往說明頁。\n按「取消」不暫存直接前往說明頁。",
+  );
 
-    if (shouldSave) {
-        const content = sanitizeEditorHtml(mainEditor.innerHTML);
-        safeSetItem(getStorageKey(currentEditorId), content);
-        updateRestoreButtonState();
-    }
+  if (shouldSave) {
+    const content = sanitizeEditorHtml(mainEditor.innerHTML);
+    safeSetItem(getStorageKey(currentEditorId), content);
+    updateRestoreButtonState();
+  }
 
-    // Fixed relative target — same-origin by construction, no redirect surface.
-    window.location.assign("description.html");
+  // Fixed relative target — same-origin by construction, no redirect surface.
+  window.location.assign("description.html");
 });
 
 // Update IME bar position whenever the cursor/selection moves
 document.addEventListener("selectionchange", () => {
-  if (imeBar.style.display !== 'none') {
+  if (imeBar.style.display !== "none") {
     // Defer to the next animation frame. This is crucial to avoid race
     // conditions where the selection has updated but the browser's scroll
     // position has not, especially after actions like pressing "Enter".

@@ -1,9 +1,5 @@
 import { describe, it, expect } from "vitest";
-import {
-  lookupCandidates,
-  selectByDigit,
-  resolveSpaceCommit,
-} from "./ime.js";
+import { lookupCandidates, selectByDigit, resolveSpaceCommit } from "./ime.js";
 import { boshiamyData } from "./boshiamy-data.js";
 
 describe("lookupCandidates", () => {
@@ -31,7 +27,11 @@ describe("lookupCandidates", () => {
   });
 
   it("splits multi-character values into individual candidates", () => {
-    expect(lookupCandidates({ ab: "甲乙丙" }, "ab")).toEqual(["甲", "乙", "丙"]);
+    expect(lookupCandidates({ ab: "甲乙丙" }, "ab")).toEqual([
+      "甲",
+      "乙",
+      "丙",
+    ]);
   });
 
   it("keeps astral (surrogate-pair) characters as single candidates", () => {

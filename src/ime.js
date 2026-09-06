@@ -14,18 +14,18 @@
  * Object.prototype.constructor (a function) and crash the editor.
  */
 export function lookupCandidates(data, code) {
-  if (typeof code !== "string" || code.length === 0) return [];
-  if (!Object.hasOwn(data, code)) return [];
-  const value = data[code];
-  return typeof value === "string" ? Array.from(value) : [];
+ if (typeof code !== "string" || code.length === 0) return [];
+ if (!Object.hasOwn(data, code)) return [];
+ const value = data[code];
+ return typeof value === "string" ? Array.from(value) : [];
 }
 
 /** Space-selector keys (classic boshiamy) → 0-based candidate index. */
 export const SPACE_SELECTOR_MAP = {
-  v: 1, // 2nd candidate
-  r: 2, // 3rd candidate
-  s: 3, // 4th candidate
-  f: 4, // 5th candidate
+ v: 1, // 2nd candidate
+ r: 2, // 3rd candidate
+ s: 3, // 4th candidate
+ f: 4, // 5th candidate
 };
 
 /**
@@ -33,8 +33,8 @@ export const SPACE_SELECTOR_MAP = {
  * Returns the character to commit, or null when the index is out of range.
  */
 export function selectByDigit(candidates, page, pageSize, digit) {
-  const index = page * pageSize + digit;
-  return index < candidates.length ? candidates[index] : null;
+ const index = page * pageSize + digit;
+ return index < candidates.length ? candidates[index] : null;
 }
 
 /**
@@ -47,19 +47,19 @@ export function selectByDigit(candidates, page, pageSize, digit) {
  * Returns the character to commit, or null (→ the caller clears IME state).
  */
 export function resolveSpaceCommit(data, buffer) {
-  if (typeof buffer !== "string" || buffer.length === 0) return null;
+ if (typeof buffer !== "string" || buffer.length === 0) return null;
 
-  const lastChar = buffer.slice(-1);
-  if (buffer.length > 1 && Object.hasOwn(SPACE_SELECTOR_MAP, lastChar)) {
-    if (!Object.hasOwn(data, buffer)) {
-      // The buffer itself is not a valid code → treat lastChar as selector.
-      const rootCandidates = lookupCandidates(data, buffer.slice(0, -1));
-      const index = SPACE_SELECTOR_MAP[lastChar];
-      return index < rootCandidates.length ? rootCandidates[index] : null;
-    }
-    // The buffer IS a valid code → fall through to its first candidate.
+ const lastChar = buffer.slice(-1);
+ if (buffer.length > 1 && Object.hasOwn(SPACE_SELECTOR_MAP, lastChar)) {
+  if (!Object.hasOwn(data, buffer)) {
+   // The buffer itself is not a valid code → treat lastChar as selector.
+   const rootCandidates = lookupCandidates(data, buffer.slice(0, -1));
+   const index = SPACE_SELECTOR_MAP[lastChar];
+   return index < rootCandidates.length ? rootCandidates[index] : null;
   }
+  // The buffer IS a valid code → fall through to its first candidate.
+ }
 
-  const candidates = lookupCandidates(data, buffer);
-  return candidates.length > 0 ? candidates[0] : null;
+ const candidates = lookupCandidates(data, buffer);
+ return candidates.length > 0 ? candidates[0] : null;
 }

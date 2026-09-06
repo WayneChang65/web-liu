@@ -1,300 +1,335 @@
 /* M8: 不再從 Google Fonts 同步載入字型（渲染阻斷 + 繁中地區可能慢/不可達）。
    改用系統字型優先序；若本機裝有 Noto Sans TC 也會被使用。 */
 body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang TC", "Hiragino Sans", "Microsoft JhengHei", "Heiti TC", "Noto Sans TC", "Helvetica Neue", Arial, sans-serif;
-    background-color: #ffffff;
-    color: #1f2937;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    min-height: 100vh;
-    margin: 0;
-    transition: background-color 0.3s, color 0.3s;
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang TC",
+    "Hiragino Sans", "Microsoft JhengHei", "Heiti TC", "Noto Sans TC",
+    "Helvetica Neue", Arial, sans-serif;
+  background-color: #ffffff;
+  color: #1f2937;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  margin: 0;
+  transition:
+    background-color 0.3s,
+    color 0.3s;
 }
 
 .container {
-    width: 90%;
-    max-width: 800px;
-    text-align: center;
-    transition: all 0.3s ease-in-out;
+  width: 90%;
+  max-width: 800px;
+  text-align: center;
+  transition: all 0.3s ease-in-out;
 }
 
 h1 {
-    color: #1f2937;
-    font-weight: 700;
+  color: #1f2937;
+  font-weight: 700;
 }
 
 .title-short {
-    display: none;
+  display: none;
 }
 
 .subtitle {
-    color: #6b7280;
-    margin-bottom: 2rem;
+  color: #6b7280;
+  margin-bottom: 2rem;
 }
 
 #ime-container {
-    position: relative;
+  position: relative;
 }
 
 #main-editor {
-    width: 100%;
-    height: 300px;
-    padding: 15px;
-    border: 1px solid #d1d5db;
-    border-radius: 0.75rem;
-    font-size: 1.2rem;
-    line-height: 1.6;
-    box-sizing: border-box;
-    transition: border-color 0.3s, height 0.3s ease-in-out, font-size 0.2s ease-in-out;
-    text-align: left; /* Align text to the left */
-    overflow-y: auto; /* Ensure scrolling */
+  width: 100%;
+  height: 300px;
+  padding: 15px;
+  border: 1px solid #d1d5db;
+  border-radius: 0.75rem;
+  font-size: 1.2rem;
+  line-height: 1.6;
+  box-sizing: border-box;
+  transition:
+    border-color 0.3s,
+    height 0.3s ease-in-out,
+    font-size 0.2s ease-in-out;
+  text-align: left; /* Align text to the left */
+  overflow-y: auto; /* Ensure scrolling */
 }
 
-/* Replicate placeholder for contenteditable div */
-/* L4: :empty 在按過 Enter 後失效（只剩 <br>），data-empty 由 JS 維持 */
-#main-editor:empty::before,
+/* Replicate placeholder for contenteditable div.
+   L4: driven solely by the data-empty attribute (managed in JS) — the
+   :empty selector kept the placeholder visible while composing boshiamy
+   codes (the editor stays empty until a character is committed). */
 #main-editor[data-empty]::before {
-    content: attr(placeholder);
-    color: #9ca3af;
-    pointer-events: none;
+  content: attr(placeholder);
+  color: #9ca3af;
+  pointer-events: none;
 }
 
 #main-editor:focus {
-    outline: none;
-    border-color: #3b82f6;
-    box-shadow: 0 0 0 1px #3b82f6;
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 1px #3b82f6;
 }
 
 #ime-bar {
-    position: absolute;
-    background-color: rgba(255, 255, 255, 0.9);
-    border: 1px solid #eee;
-    border-radius: 4px;
-    padding: 5px 10px;
-    font-size: 1rem;
-    display: none; /* Initially hidden */
-    align-items: center;
-    z-index: 10;
+  position: absolute;
+  background-color: rgba(255, 255, 255, 0.9);
+  border: 1px solid #eee;
+  border-radius: 4px;
+  padding: 5px 10px;
+  font-size: 1rem;
+  display: none; /* Initially hidden */
+  align-items: center;
+  z-index: 10;
 }
 
 #input-buffer {
-    color: #0056b3;
-    font-weight: 500;
-    margin-right: 10px;
+  color: #0056b3;
+  font-weight: 500;
+  margin-right: 10px;
 }
 
 #candidate-list {
-    color: #444;
+  color: #444;
 }
 
 .mode-line {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    margin-bottom: 1rem;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 1rem;
 }
 
 #mode-indicator {
-    font-weight: 500;
-    color: #d9534f; /* A distinct color */
-    cursor: pointer;
+  font-weight: 500;
+  color: #d9534f; /* A distinct color */
+  cursor: pointer;
 }
 
 #editor-tabs {
-    margin-right: 15px; /* Space between tabs and mode text */
-    display: flex;
-    gap: 8px;
+  margin-right: 15px; /* Space between tabs and mode text */
+  display: flex;
+  gap: 8px;
 }
 
 .tab-button {
-    font-weight: 500;
-    border-radius: 0.5rem;
-    transition: all 0.2s ease-in-out;
-    background-color: transparent;
-    color: #374151;
-    border: 1px solid #9ca3af;
-    width: 40px;
-    height: 28px;
-    cursor: pointer;
-    display: flex;
-    justify-content: center;
-    align-items: center;
+  font-weight: 500;
+  border-radius: 0.5rem;
+  transition: all 0.2s ease-in-out;
+  background-color: transparent;
+  color: #374151;
+  border: 1px solid #9ca3af;
+  width: 40px;
+  height: 28px;
+  cursor: pointer;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
 .tab-button:hover {
-    transform: translateY(-1px);
-    color: #3b82f6;
-    border-color: #3b82f6;
+  transform: translateY(-1px);
+  color: #3b82f6;
+  border-color: #3b82f6;
 }
 
 .tab-button.active {
-    background-color: #1f2937;
-    color: #ffffff;
-    border-color: #1f2937;
-    box-shadow: none;
+  background-color: #1f2937;
+  color: #ffffff;
+  border-color: #1f2937;
+  box-shadow: none;
 }
 
 .tab-button.active:hover {
-    background-color: #000000;
+  background-color: #000000;
 }
 
-
 .button-container {
-    margin-top: 1rem;
-    display: flex;
-    justify-content: center;
-    gap: 10px;
+  margin-top: 1rem;
+  display: flex;
+  justify-content: center;
+  gap: 10px;
 }
 
 /* --- Unified Button Styles --- */
 
-#copy-button, #zoom-in-button, #zoom-out-button, #save-md-button,
-#restore-button, #save-temp-button, #description-button, #immersive-toggle-button, #theme-toggle-button {
-    padding: 8px 15px;
-    font-size: 0.9rem;
-    font-family: inherit;
-    font-weight: 500;
-    border-radius: 0.5rem;
-    cursor: pointer;
-    transition: all 0.2s ease-in-out;
-    text-decoration: none; /* For <a> tags */
+#copy-button,
+#zoom-in-button,
+#zoom-out-button,
+#save-md-button,
+#restore-button,
+#save-temp-button,
+#description-button,
+#immersive-toggle-button,
+#theme-toggle-button {
+  padding: 8px 15px;
+  font-size: 0.9rem;
+  font-family: inherit;
+  font-weight: 500;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+  text-decoration: none; /* For <a> tags */
 }
 
-#copy-button:hover, #zoom-in-button:hover, #zoom-out-button:hover, #save-md-button:hover,
-#restore-button:hover, #save-temp-button:hover, #description-button:hover, #immersive-toggle-button:hover, #theme-toggle-button:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+#copy-button:hover,
+#zoom-in-button:hover,
+#zoom-out-button:hover,
+#save-md-button:hover,
+#restore-button:hover,
+#save-temp-button:hover,
+#description-button:hover,
+#immersive-toggle-button:hover,
+#theme-toggle-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
 }
 
 /* Action Buttons (Tertiary) */
-#copy-button, #save-md-button, #restore-button, #save-temp-button {
-    background-color: #eff6ff; /* Light blue */
-    color: #3b82f6; /* Accent blue */
-    border: 1px solid #dbeafe;
+#copy-button,
+#save-md-button,
+#restore-button,
+#save-temp-button {
+  background-color: #eff6ff; /* Light blue */
+  color: #3b82f6; /* Accent blue */
+  border: 1px solid #dbeafe;
 }
-#copy-button:hover, #save-md-button:hover, #restore-button:hover, #save-temp-button:hover {
-    background-color: #dbeafe;
-    border-color: #bfdbfe;
+#copy-button:hover,
+#save-md-button:hover,
+#restore-button:hover,
+#save-temp-button:hover {
+  background-color: #dbeafe;
+  border-color: #bfdbfe;
 }
 
 /* Secondary / Ghost Buttons */
-#zoom-in-button, #zoom-out-button, #description-button, #immersive-toggle-button, #theme-toggle-button {
-    background-color: #ffffff;
-    color: #374151;
-    border: 1px solid #d1d5db;
+#zoom-in-button,
+#zoom-out-button,
+#description-button,
+#immersive-toggle-button,
+#theme-toggle-button {
+  background-color: #ffffff;
+  color: #374151;
+  border: 1px solid #d1d5db;
 }
-#zoom-in-button:hover, #zoom-out-button:hover, #description-button:hover, #immersive-toggle-button:hover, #theme-toggle-button:hover {
-    background-color: #f9fafb; /* very light gray */
-    border-color: #9ca3af;
+#zoom-in-button:hover,
+#zoom-out-button:hover,
+#description-button:hover,
+#immersive-toggle-button:hover,
+#theme-toggle-button:hover {
+  background-color: #f9fafb; /* very light gray */
+  border-color: #9ca3af;
 }
 
 /* Resetting specific positionings from original layout */
 #zoom-in-button {
-    margin-left: 10px;
+  margin-left: 10px;
 }
 
 #logo-container {
-    position: fixed;
-    top: 10px;
-    left: 20px;
-    z-index: 1001;
-    display: flex;
-    align-items: center;
-    cursor: pointer; /* Make clickable */
+  position: fixed;
+  top: 10px;
+  left: 20px;
+  z-index: 1001;
+  display: flex;
+  align-items: center;
+  cursor: pointer; /* Make clickable */
 }
 
 #logo-container img {
-    height: 45px;
-    width: auto;
-    transition: filter 0.3s ease-in-out;
+  height: 45px;
+  width: auto;
+  transition: filter 0.3s ease-in-out;
 }
 
 /* Disabled State (Gray) - Light Mode */
 #logo-container img.disabled-logo {
-    filter: grayscale(100%) opacity(0.6);
+  filter: grayscale(100%) opacity(0.6);
 }
 
 .version-text {
-    font-size: 0.9rem;
-    color: #6b7280; /* Subtler gray */
-    margin-left: 8px;
-    font-weight: 500;
+  font-size: 0.9rem;
+  color: #6b7280; /* Subtler gray */
+  margin-left: 8px;
+  font-weight: 500;
 }
 
 body.dark-mode .version-text {
-    color: #94a3b8;
+  color: #94a3b8;
 }
 
 #description-button {
-    left: 190px;
+  left: 190px;
 }
 
 #theme-toggle-button {
-    right: 20px;
+  right: 20px;
 }
 
 #immersive-toggle-button {
-    right: 130px;
+  right: 130px;
 }
 
 #restore-button {
-    left: 80px;
+  left: 80px;
 }
-
 
 /* Dark Mode Styles (Tech Theme) */
 body.dark-mode {
-    background-color: #000000;
-    color: #e2e8f0;
+  background-color: #000000;
+  color: #e2e8f0;
 }
 
 body.dark-mode h1 {
-    color: #22d3ee; /* Vibrant Cyan */
-    text-shadow: 0 0 6px rgba(34, 211, 238, 0.4);
+  color: #22d3ee; /* Vibrant Cyan */
+  text-shadow: 0 0 6px rgba(34, 211, 238, 0.4);
 }
 
 body.dark-mode .subtitle {
-    color: #94a3b8;
+  color: #94a3b8;
 }
 
 body.dark-mode #logo-container img {
-    filter: invert(1) hue-rotate(180deg);
+  filter: invert(1) hue-rotate(180deg);
 }
 
 /* Disabled State (Gray) - Dark Mode */
 body.dark-mode #logo-container img.disabled-logo {
-    filter: invert(1) grayscale(100%) opacity(0.5);
+  filter: invert(1) grayscale(100%) opacity(0.5);
 }
 
 body.dark-mode #main-editor {
-    background-color: #101010; /* Slightly off-black */
-    color: #e2e8f0;
-    border-color: #334155;
-    border-radius: 0.75rem;
+  background-color: #101010; /* Slightly off-black */
+  color: #e2e8f0;
+  border-color: #334155;
+  border-radius: 0.75rem;
 }
 
 body.dark-mode #main-editor:focus {
-    border-color: #22d3ee;
-    box-shadow: 0 0 8px rgba(34, 211, 238, 0.3);
+  border-color: #22d3ee;
+  box-shadow: 0 0 8px rgba(34, 211, 238, 0.3);
 }
 
 body.dark-mode #ime-bar {
-    background-color: rgba(16, 16, 16, 0.9);
-    border-color: #334155;
+  background-color: rgba(16, 16, 16, 0.9);
+  border-color: #334155;
 }
 
 body.dark-mode #input-buffer {
-    color: #22d3ee;
+  color: #22d3ee;
 }
 
 body.dark-mode #candidate-list {
-    color: #e2e8f0;
+  color: #e2e8f0;
 }
 
 body.dark-mode #mode-indicator {
-    color: #94a3b8;
+  color: #94a3b8;
 }
 
 /* --- Unified Dark Mode Button Styles (Tech Theme) --- */
@@ -304,17 +339,17 @@ body.dark-mode #copy-button,
 body.dark-mode #save-md-button,
 body.dark-mode #restore-button,
 body.dark-mode #save-temp-button {
-    background-color: transparent;
-    color: #22d3ee;
-    border: 1px solid #22d3ee;
-    box-shadow: 0 0 3px rgba(34, 211, 238, 0.4);
+  background-color: transparent;
+  color: #22d3ee;
+  border: 1px solid #22d3ee;
+  box-shadow: 0 0 3px rgba(34, 211, 238, 0.4);
 }
 body.dark-mode #copy-button:hover,
 body.dark-mode #save-md-button:hover,
 body.dark-mode #restore-button:hover,
 body.dark-mode #save-temp-button:hover {
-    background-color: rgba(34, 211, 238, 0.1);
-    box-shadow: 0 0 8px rgba(34, 211, 238, 0.6);
+  background-color: rgba(34, 211, 238, 0.1);
+  box-shadow: 0 0 8px rgba(34, 211, 238, 0.6);
 }
 
 /* Secondary / Ghost Buttons */
@@ -323,111 +358,115 @@ body.dark-mode #zoom-out-button,
 body.dark-mode #description-button,
 body.dark-mode #immersive-toggle-button,
 body.dark-mode #theme-toggle-button {
-    background-color: transparent;
-    color: #94a3b8;
-    border: 1px solid #334155;
+  background-color: transparent;
+  color: #94a3b8;
+  border: 1px solid #334155;
 }
 body.dark-mode #zoom-in-button:hover,
 body.dark-mode #zoom-out-button:hover,
 body.dark-mode #description-button:hover,
 body.dark-mode #immersive-toggle-button:hover,
 body.dark-mode #theme-toggle-button:hover {
-    color: #22d3ee;
-    border-color: #22d3ee;
+  color: #22d3ee;
+  border-color: #22d3ee;
 }
 
 /* Dark mode Tab buttons */
 body.dark-mode .tab-button {
-    background-color: transparent;
-    color: #94a3b8;
-    border: 1px solid #334155;
+  background-color: transparent;
+  color: #94a3b8;
+  border: 1px solid #334155;
 }
 body.dark-mode .tab-button:hover {
-    color: #22d3ee;
-    border-color: #22d3ee;
+  color: #22d3ee;
+  border-color: #22d3ee;
 }
 body.dark-mode .tab-button.active {
-    background-color: #22d3ee;
-    color: #000000;
-    border-color: #22d3ee;
-    text-shadow: none;
+  background-color: #22d3ee;
+  color: #000000;
+  border-color: #22d3ee;
+  text-shadow: none;
 }
 body.dark-mode .tab-button.active:hover {
-    background-color: #5fffff; /* Brighter cyan on hover */
-    border-color: #5fffff;
+  background-color: #5fffff; /* Brighter cyan on hover */
+  border-color: #5fffff;
 }
 
 /* Immersive Mode */
 body.immersive-mode .container {
-    width: 100%;
-    max-width: 100%;
-    height: 100vh;
-    padding: 20px;
-    box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  height: 100vh;
+  padding: 20px;
+  box-sizing: border-box;
 }
 
 body.immersive-mode #main-editor {
-    height: calc(100vh - 150px); /* Adjust based on other elements */
+  height: calc(100vh - 150px); /* Adjust based on other elements */
 }
 
 body.immersive-mode h1,
 body.immersive-mode .subtitle,
 body.immersive-mode #copy-button {
-    display: none;
+  display: none;
 }
 
 body.immersive-mode .mode-line {
-    padding-top: 50px;
+  padding-top: 50px;
 }
 
 body.immersive-mode .button-container {
-    position: fixed;
-    bottom: 20px;
-    right: 20px;
-    margin-top: 0;
-    z-index: 1001;
-    align-items: flex-end;
-    flex-direction: column;
-    gap: 8px;
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  margin-top: 0;
+  z-index: 1001;
+  align-items: flex-end;
+  flex-direction: column;
+  gap: 8px;
 }
 
 #button-toggle {
-    display: none; /* Hidden by default */
-    cursor: pointer;
-    padding: 5px 10px;
-    background-color: rgba(108, 117, 125, 0.8);
-    color: white;
-    border-radius: 50%;
-    font-weight: bold;
-    line-height: 1;
+  display: none; /* Hidden by default */
+  cursor: pointer;
+  padding: 5px 10px;
+  background-color: rgba(108, 117, 125, 0.8);
+  color: white;
+  border-radius: 50%;
+  font-weight: bold;
+  line-height: 1;
 }
 
 body.immersive-mode #button-toggle {
-    display: block; /* Visible in immersive mode */
+  display: block; /* Visible in immersive mode */
 }
 
 body.immersive-mode .button-container > button {
-    opacity: 0;
-    visibility: hidden;
-    transform: translateY(10px);
-    transition: opacity 0.3s, visibility 0.3s, transform 0.3s;
-    pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(10px);
+  transition:
+    opacity 0.3s,
+    visibility 0.3s,
+    transform 0.3s;
+  pointer-events: none;
 }
 
 body.immersive-mode .button-container.expanded > button {
-    opacity: 1;
-    visibility: visible;
-    transform: translateY(0);
-    pointer-events: auto;
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+  pointer-events: auto;
 }
-
 
 /* -- Highlight for IME mode text -- */
 .mode-text {
   padding: 3px 8px;
   border-radius: 5px;
   font-weight: 500;
-  transition: background-color 0.3s, color 0.3s;
+  transition:
+    background-color 0.3s,
+    color 0.3s;
 }
 
 /* --- Boshiamy Mode Colors --- */
@@ -466,124 +505,127 @@ body.dark-mode .mode-text.disabled {
   color: #fecaca; /* Light red */
 }
 
-#restore-button:disabled, #save-temp-button:disabled {
+#restore-button:disabled,
+#save-temp-button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
   pointer-events: none; /* Prevents hover effects */
 }
 
 #top-button-container {
-    position: fixed;
-    top: 10px;
-    right: 10px;
-    z-index: 1001;
+  position: fixed;
+  top: 10px;
+  right: 10px;
+  z-index: 1001;
 }
 
 #top-button-toggle {
-    display: none; /* Hidden by default */
-    padding: 8px 12px;
-    font-size: 1.2rem;
-    background-color: #6c757d;
-    color: white;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
+  display: none; /* Hidden by default */
+  padding: 8px 12px;
+  font-size: 1.2rem;
+  background-color: #6c757d;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
 }
 
 @media (max-width: 550px) {
-    /* 1. Show the toggle button */
-    #top-button-toggle {
-        display: block;
-    }
+  /* 1. Show the toggle button */
+  #top-button-toggle {
+    display: block;
+  }
 
-    /* 2. Hide the action buttons by default */
-    #top-button-container > button:not(#top-button-toggle),
-    #top-button-container > a {
-        display: none;
-    }
+  /* 2. Hide the action buttons by default */
+  #top-button-container > button:not(#top-button-toggle),
+  #top-button-container > a {
+    display: none;
+  }
 
-    /* 3. Style the expanded container */
-    #top-button-container.expanded {
-        background-color: rgba(108, 117, 125, 0.9);
-        padding: 10px;
-        border-radius: 5px;
-    }
+  /* 3. Style the expanded container */
+  #top-button-container.expanded {
+    background-color: rgba(108, 117, 125, 0.9);
+    padding: 10px;
+    border-radius: 5px;
+  }
 
-    body.dark-mode #top-button-container.expanded {
-        background-color: rgba(16, 16, 16, 0.9);
-        border: 1px solid #334155;
-    }
+  body.dark-mode #top-button-container.expanded {
+    background-color: rgba(16, 16, 16, 0.9);
+    border: 1px solid #334155;
+  }
 
-    /* 4. Show and style the action buttons when expanded */
-    #top-button-container.expanded > button:not(#top-button-toggle),
-    #top-button-container.expanded > a {
-        display: block;
-        position: static;
-        width: 100%;
-        margin-bottom: 5px;
-        text-align: center;
-        box-sizing: border-box;
-    }
+  /* 4. Show and style the action buttons when expanded */
+  #top-button-container.expanded > button:not(#top-button-toggle),
+  #top-button-container.expanded > a {
+    display: block;
+    position: static;
+    width: 100%;
+    margin-bottom: 5px;
+    text-align: center;
+    box-sizing: border-box;
+  }
 
-    /* 5. Remove margin from the last button */
-    #top-button-container.expanded > :last-child {
-        margin-bottom: 0;
-    }
+  /* 5. Remove margin from the last button */
+  #top-button-container.expanded > :last-child {
+    margin-bottom: 0;
+  }
 
-    .font-size-indicator {
-        display: none;
-    }
+  .font-size-indicator {
+    display: none;
+  }
 
-    .title-full {
-        display: none;
-    }
+  .title-full {
+    display: none;
+  }
 
-    .title-short {
-        display: inline;
-    }
+  .title-short {
+    display: inline;
+  }
 }
 
 footer {
-    margin-top: 2rem;
-    margin-bottom: 1rem;
-    font-size: 0.8rem;
-    color: #9ca3af; /* Light gray */
-    text-align: center;
+  margin-top: 2rem;
+  margin-bottom: 1rem;
+  font-size: 0.8rem;
+  color: #9ca3af; /* Light gray */
+  text-align: center;
 }
 
 body.dark-mode footer {
-    color: #6b7280; /* Slightly darker gray for dark mode */
+  color: #6b7280; /* Slightly darker gray for dark mode */
 }
 
 body.immersive-mode footer {
-    margin-top: -1.5rem;
-    margin-bottom: 0.5rem;
+  margin-top: -1.5rem;
+  margin-bottom: 0.5rem;
 }
 
 /* --- Toast (H4: 暫存失敗等提示必須對使用者可見) --- */
 #toast {
-    position: fixed;
-    bottom: 24px;
-    left: 50%;
-    transform: translate(-50%, 10px);
-    background-color: #1f2937;
-    color: #ffffff;
-    padding: 10px 18px;
-    border-radius: 0.5rem;
-    font-size: 0.9rem;
-    max-width: 80vw;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
-    z-index: 1002;
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translate(-50%, 10px);
+  background-color: #1f2937;
+  color: #ffffff;
+  padding: 10px 18px;
+  border-radius: 0.5rem;
+  font-size: 0.9rem;
+  max-width: 80vw;
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity 0.3s ease-in-out,
+    transform 0.3s ease-in-out;
+  z-index: 1002;
 }
 
 #toast.visible {
-    opacity: 1;
-    transform: translate(-50%, 0);
+  opacity: 1;
+  transform: translate(-50%, 0);
 }
 
 body.dark-mode #toast {
-    background-color: #22d3ee;
-    color: #000000;
+  background-color: #22d3ee;
+  color: #000000;
 }
