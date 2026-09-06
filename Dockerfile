@@ -34,7 +34,8 @@ COPY --from=builder /app/dist /usr/local/apache2/htdocs/
 # M6: run as the unprivileged 'daemon' user. Non-root cannot bind port 80,
 # so Apache listens on 8088 (updated in docker-compose service port).
 RUN sed -i 's/^Listen 80$/Listen 8088/' /usr/local/apache2/conf/httpd.conf \
-    && chown -R daemon:daemon /usr/local/apache2/htdocs
+    && chown -R daemon:daemon /usr/local/apache2/htdocs \
+    && chown -R daemon:daemon /usr/local/apache2/logs
 
 # M6: security headers (CSP itself ships as a <meta> tag in the HTML pages)
 RUN { \
