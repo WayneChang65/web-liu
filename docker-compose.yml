@@ -16,9 +16,32 @@ services:
       - "traefik.http.routers.liu-web.middlewares=authelia@docker"
       # M6: httpd now runs as non-root on 8088 (see Dockerfile)
       - "traefik.http.services.liu-web.loadBalancer.server.port=8088"
+    depends_on:
+      - liu-proxy
 
 #   ports:
 #     - 8084:8088
+
+  # 「存入HackMD」的 API 轉發器：前端呼叫同網域 /api/hackmd/*，
+  # Traefik 把 /api 前綴優先導向此服務（見 proxy/server.js）。
+  # Token 只經此轉發，不落碟、不記 body。
+  liu-proxy:
+    image: wayne/liu-hackmd-proxy:1.0.0
+    build:
+      context: ./proxy
+    hostname: liu-proxy
+    restart: unless-stopped
+    container_name: liu-proxy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.liu-proxy.entrypoints=websecure"
+      # 更長的前綴 rule 優先於 liu-web 的 Host-only rule
+      - "traefik.http.routers.liu-proxy.rule=Host(`liu.$MY_DOMAIN`)
+        && PathPrefix(`/api`)"
+      - "traefik.http.routers.liu-proxy.tls.certresolver=lets-encr"
+      # Authelia 沿用：只有通過認證的使用者能使用此轉發器
+      - "traefik.http.routers.liu-proxy.middlewares=authelia@docker"
+      - "traefik.http.services.liu-proxy.loadBalancer.server.port=8088"
 
 networks:
   default:

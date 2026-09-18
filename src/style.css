@@ -166,6 +166,7 @@ h1 {
 #save-temp-button,
 #description-button,
 #immersive-toggle-button,
+#hackmd-button,
 #theme-toggle-button {
   padding: 8px 15px;
   font-size: 0.9rem;
@@ -185,6 +186,7 @@ h1 {
 #save-temp-button:hover,
 #description-button:hover,
 #immersive-toggle-button:hover,
+#hackmd-button:hover,
 #theme-toggle-button:hover {
   transform: translateY(-1px);
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
@@ -194,6 +196,7 @@ h1 {
 #copy-button,
 #save-md-button,
 #restore-button,
+#hackmd-button,
 #save-temp-button {
   background-color: #eff6ff; /* Light blue */
   color: #3b82f6; /* Accent blue */
@@ -202,6 +205,7 @@ h1 {
 #copy-button:hover,
 #save-md-button:hover,
 #restore-button:hover,
+#hackmd-button:hover,
 #save-temp-button:hover {
   background-color: #dbeafe;
   border-color: #bfdbfe;
@@ -338,6 +342,7 @@ body.dark-mode #mode-indicator {
 body.dark-mode #copy-button,
 body.dark-mode #save-md-button,
 body.dark-mode #restore-button,
+body.dark-mode #hackmd-button,
 body.dark-mode #save-temp-button {
   background-color: transparent;
   color: #22d3ee;
@@ -347,6 +352,7 @@ body.dark-mode #save-temp-button {
 body.dark-mode #copy-button:hover,
 body.dark-mode #save-md-button:hover,
 body.dark-mode #restore-button:hover,
+body.dark-mode #hackmd-button:hover,
 body.dark-mode #save-temp-button:hover {
   background-color: rgba(34, 211, 238, 0.1);
   box-shadow: 0 0 8px rgba(34, 211, 238, 0.6);
@@ -623,6 +629,163 @@ body.immersive-mode footer {
 #toast.visible {
   opacity: 1;
   transform: translate(-50%, 0);
+}
+
+/* --- HackMD 存入對話框 --- */
+#hackmd-modal {
+  width: min(560px, 92vw);
+  border: 1px solid #d1d5db;
+  border-radius: 0.75rem;
+  padding: 20px 24px;
+  background-color: #ffffff;
+  color: #1f2937;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+}
+
+#hackmd-modal::backdrop {
+  background-color: rgba(0, 0, 0, 0.45);
+}
+
+#hackmd-modal h2 {
+  margin: 0 0 12px;
+  font-size: 1.25rem;
+}
+
+#hackmd-form {
+  text-align: left;
+}
+
+#hackmd-form > label {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 500;
+  margin: 10px 0 4px;
+}
+
+#hackmd-form > label a {
+  font-weight: 400;
+  margin-left: 4px;
+}
+
+#hackmd-form input[type="text"],
+#hackmd-form input[type="password"],
+#hackmd-form select,
+#hackmd-form textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 0.5rem;
+  font-size: 0.9rem;
+  font-family: inherit;
+  background-color: #ffffff;
+  color: #1f2937;
+}
+
+#hackmd-form textarea {
+  resize: vertical;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.85rem;
+}
+
+#hackmd-form input:focus,
+#hackmd-form select:focus,
+#hackmd-form textarea:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 1px #3b82f6;
+}
+
+.hackmd-row {
+  display: flex;
+  gap: 12px;
+}
+
+.hackmd-row > div {
+  flex: 1;
+  min-width: 0;
+}
+
+.hackmd-remember {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 400;
+}
+
+.hackmd-remember input {
+  width: auto;
+}
+
+.hackmd-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.hackmd-buttons button {
+  padding: 8px 15px;
+  font-size: 0.9rem;
+  font-family: inherit;
+  font-weight: 500;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+  border: 1px solid #d1d5db;
+  background-color: #ffffff;
+  color: #374151;
+}
+
+.hackmd-buttons button:hover {
+  background-color: #f9fafb;
+  border-color: #9ca3af;
+}
+
+.hackmd-buttons #hackmd-submit {
+  background-color: #eff6ff;
+  color: #3b82f6;
+  border: 1px solid #dbeafe;
+}
+
+.hackmd-buttons #hackmd-submit:hover {
+  background-color: #dbeafe;
+  border-color: #bfdbfe;
+}
+
+body.dark-mode #hackmd-modal {
+  background-color: #111827;
+  color: #e5e7eb;
+  border-color: #334155;
+}
+
+body.dark-mode #hackmd-form input[type="text"],
+body.dark-mode #hackmd-form input[type="password"],
+body.dark-mode #hackmd-form select,
+body.dark-mode #hackmd-form textarea {
+  background-color: #1f2937;
+  color: #e5e7eb;
+  border-color: #334155;
+}
+
+body.dark-mode .hackmd-buttons button {
+  background-color: transparent;
+  color: #e5e7eb;
+  border-color: #334155;
+}
+
+body.dark-mode .hackmd-buttons button:hover {
+  background-color: #1f2937;
+  border-color: #22d3ee;
+}
+
+body.dark-mode .hackmd-buttons #hackmd-submit {
+  color: #22d3ee;
+  border-color: #22d3ee;
+}
+
+body.dark-mode .hackmd-buttons #hackmd-submit:hover {
+  background-color: rgba(34, 211, 238, 0.1);
 }
 
 body.dark-mode #toast {

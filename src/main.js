@@ -2,6 +2,7 @@ import "./style.css";
 import { boshiamyData } from "./boshiamy-data.js";
 import TurndownService from "turndown";
 import { lookupCandidates, selectByDigit, resolveSpaceCommit } from "./ime.js";
+import { initHackmd } from "./hackmd.js";
 import { applyEditorContent, sanitizeEditorHtml } from "./sanitize.js";
 
 const mainEditor = document.getElementById("main-editor");
@@ -1095,6 +1096,14 @@ descriptionButton.addEventListener("click", (e) => {
 
   // Fixed relative target — same-origin by construction, no redirect surface.
   window.location.assign("description.html");
+});
+
+// --- HACKMD BUTTON LOGIC ---
+initHackmd({
+  editorEl: mainEditor,
+  turndownService,
+  sanitizeEditorHtml,
+  showToast,
 });
 
 // Update IME bar position whenever the cursor/selection moves

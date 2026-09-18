@@ -15,6 +15,18 @@ export default defineConfig({
   },
   server: {
     port: 3000,
-    open: true
+    open: true,
+    proxy: {
+      // HackMD API sends no CORS headers, so the "存入HackMD" feature calls
+      // /api/hackmd/* (same-origin) and the dev server forwards to the API.
+      // Production mirrors this with the sidecar container (proxy/server.js).
+      '/api/hackmd': {
+        target: 'https://api.hackmd.io',
+        changeOrigin: true,
+        secure: false,
+        headers: { Origin: 'https://hackmd.io' },
+        rewrite: (path) => path.replace(/^\/api\/hackmd/, '/v1')
+      }
+    }
   }
 });

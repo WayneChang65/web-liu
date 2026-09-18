@@ -7,7 +7,7 @@
         <!-- H3: second line of defense against stored XSS — scripts only from self -->
         <meta
             http-equiv="Content-Security-Policy"
-            content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'self'"
+            content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'"
         />
         <link rel="icon" type="image/x-icon" href="/img/favicon.ico" />
         <link
@@ -27,6 +27,7 @@
             <button id="top-button-toggle">&#9776;</button>
             <button id="save-temp-button">存入暫存</button>
             <button id="restore-button">讀回暫存</button>
+            <button id="hackmd-button">存入HackMD</button>
             <a href="description.html" id="description-button">功能說明</a>
             <button id="immersive-toggle-button">沉浸模式</button>
             <button id="theme-toggle-button">切換深色模式</button>
@@ -83,6 +84,73 @@
             </div>
         </div>
         <footer>© 2025 Wayne Chang (w/ Gemini CLI)</footer>
+        <dialog id="hackmd-modal" aria-labelledby="hackmd-modal-title">
+            <h2 id="hackmd-modal-title">存入 HackMD</h2>
+            <form id="hackmd-form" method="dialog">
+                <label for="hackmd-token"
+                    >HackMD API Token<a
+                        href="https://hackmd.io/@docs/how-to-issue-an-api-token"
+                        target="_blank"
+                        rel="noopener"
+                        >（如何取得）</a
+                    ></label
+                >
+                <input
+                    type="password"
+                    id="hackmd-token"
+                    autocomplete="off"
+                    placeholder="貼上你的 API Token"
+                />
+                <label for="hackmd-title">標題（必填）</label>
+                <input
+                    type="text"
+                    id="hackmd-title"
+                    required
+                    placeholder="文件標題"
+                />
+                <label for="hackmd-description">描述（選填）</label>
+                <input
+                    type="text"
+                    id="hackmd-description"
+                    placeholder="會放在內容最前面"
+                />
+                <div class="hackmd-row">
+                    <div>
+                        <label for="hackmd-permission">權限</label>
+                        <select id="hackmd-permission">
+                            <option value="private">private（私有）</option>
+                            <option value="public">public（公開）</option>
+                            <option value="team">team（團隊）</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="hackmd-permalink"
+                            >自有代稱（選填）</label
+                        >
+                        <input
+                            type="text"
+                            id="hackmd-permalink"
+                            pattern="[A-Za-z0-9_-]{3,100}"
+                            title="僅限英文、數字、底線與連字號，3-100 字"
+                            placeholder="my-note-id"
+                        />
+                    </div>
+                </div>
+                <label for="hackmd-note">內容預覽（Markdown，可微調）</label>
+                <textarea id="hackmd-note" rows="8" spellcheck="false"></textarea>
+                <label class="hackmd-remember"
+                    ><input type="checkbox" id="hackmd-remember" checked />
+                    在本機記住 Token 與設定</label
+                >
+                <div class="hackmd-buttons">
+                    <button type="button" id="hackmd-save-settings">
+                        儲存設定
+                    </button>
+                    <button type="submit" id="hackmd-submit">存入</button>
+                    <button type="button" id="hackmd-cancel">取消</button>
+                </div>
+            </form>
+        </dialog>
         <div id="toast" role="status"></div>
         <script type="module" src="/src/main.js"></script>
     </body>
