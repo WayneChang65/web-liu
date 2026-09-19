@@ -1,0 +1,24 @@
+# Production sidecar for the "存入HackMD" feature: forwards same-origin
+# /api/hackmd/* to https://api.hackmd.io/v1/*. See proxy/server.js.
+FROM node:22-alpine
+
+# Install git to clone the repository
+RUN apk add --no-cache git
+
+# Non-root by default: the built-in 'node' user cannot bind <1024, and the
+# server listens on 8088 (matches the liu-web convention).
+WORKDIR /app
+
+# Argument to force cache busting when the git repo updates
+# usage: docker-compose build --build-arg CACHEBUST=$(date +%s)
+ARG CACHEBUST=1
+
+# Clone the repository (master branch) so the image always picks up the
+# latest committed code, instead of COPYing a local snapshot.
+RUN git clone -b master https://github.com/WayneChang65/web-liu.git . \
+    && mv proxy/server.js . \
+    && rm -rf .git
+
+USER node
+EXPOSE 8088
+CMD ["node", "server.js"]

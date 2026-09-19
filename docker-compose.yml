@@ -7,6 +7,9 @@ services:
     env_file: .env
     stdin_open: true
     tty: true
+    build:
+      context: .
+      dockerfile: Dockerfile-web
 
     labels:
       - "traefik.enable=true"
@@ -28,7 +31,8 @@ services:
   liu-proxy:
     image: wayne/liu-hackmd-proxy:1.0.0
     build:
-      context: ./proxy
+      context: .
+      dockerfile: Dockerfile-proxy
     hostname: liu-proxy
     restart: unless-stopped
     container_name: liu-proxy
