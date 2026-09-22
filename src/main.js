@@ -2,7 +2,8 @@ import "./style.css";
 import { boshiamyData } from "./boshiamy-data.js";
 import TurndownService from "turndown";
 import { lookupCandidates, selectByDigit, resolveSpaceCommit } from "./ime.js";
-import { initHackmd } from "./hackmd.js";
+import { initHackmdSave } from "./hackmd.js";
+import { initHackmdBrowser } from "./hackmd-browser.js";
 import { applyEditorContent, sanitizeEditorHtml } from "./sanitize.js";
 
 const mainEditor = document.getElementById("main-editor");
@@ -832,6 +833,7 @@ editorTabs.addEventListener("click", (e) => {
   // 5. Update UI states for the new editor
   updateRestoreButtonState();
   updatePlaceholderState();
+  updateHackmdTabBadges();
   mainEditor.focus();
 });
 
@@ -1098,13 +1100,67 @@ descriptionButton.addEventListener("click", (e) => {
   window.location.assign("description.html");
 });
 
-// --- HACKMD BUTTON LOGIC ---
-initHackmd({
+// --- HACKMD INTEGRATION (開啟 / 存入 / 分頁綁定) ---
+// D4: each editor tab may be bound to one HackMD note. Bindings are kept in
+// memory for the session only — after a reload tabs start unbound again, and
+// the next save becomes a 另存新檔. The note content itself always lives on
+// HackMD, so nothing is lost by not persisting bindings.
+const hackmdBindings = { 1: null, 2: null, 3: null };
+
+function editorHasUnsavedLookingContent() {
+  // Same "visually empty" notion as updatePlaceholderState (L4).
+  const html = mainEditor.innerHTML;
+  return !(
+    html === "" ||
+    /^<br\s*\/?>$/i.test(html) ||
+    /^(\s*<div>\s*<br\s*\/?>\s*<\/div>\s*)+$/i.test(html)
+  );
+}
+
+function updateHackmdTabBadges() {
+  for (const btn of editorTabs.querySelectorAll(".tab-button")) {
+    const id = parseInt(btn.dataset.editor, 10);
+    const bound = hackmdBindings[id];
+    btn.classList.toggle("hackmd-bound", !!bound);
+    btn.title = bound ? `已綁定 HackMD：${bound.title || "（無標題）"}` : "";
+  }
+}
+
+initHackmdBrowser({
+  sanitizeEditorHtml,
+  showToast,
+  editorHasContent: editorHasUnsavedLookingContent,
+  saveTempBeforeOpen: () => {
+    const content = sanitizeEditorHtml(mainEditor.innerHTML);
+    if (safeSetItem(getStorageKey(currentEditorId), content)) {
+      updateRestoreButtonState();
+    }
+  },
+  onOpenNote: ({ noteId, title, html }) => {
+    applyEditorContent(mainEditor, html);
+    // Cache exactly what we just applied (applyEditorContent re-sanitizes
+    // internally, so re-read the DOM to stay byte-consistent with the view).
+    editorContents[currentEditorId] = sanitizeEditorHtml(mainEditor.innerHTML);
+    hackmdBindings[currentEditorId] = { noteId, title };
+    updateHackmdTabBadges();
+    updatePlaceholderState();
+    mainEditor.focus();
+  },
+});
+
+initHackmdSave({
   editorEl: mainEditor,
   turndownService,
   sanitizeEditorHtml,
   showToast,
+  getBinding: () => hackmdBindings[currentEditorId],
+  setBinding: (binding) => {
+    hackmdBindings[currentEditorId] = binding;
+    updateHackmdTabBadges();
+  },
 });
+
+updateHackmdTabBadges();
 
 // Update IME bar position whenever the cursor/selection moves
 document.addEventListener("selectionchange", () => {

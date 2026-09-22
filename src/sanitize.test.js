@@ -65,10 +65,36 @@ describe("sanitizeEditorHtml", () => {
     ).toBe("<p>甲乙</p>丙");
   });
 
-  it("keeps a href-less anchor's text via unwrapping", () => {
+  it("keeps anchors but strips unsafe-scheme hrefs (markdown link contract)", () => {
     expect(
       sanitizeEditorHtml('<a href="javascript:alert(1)">連結文字</a>'),
-    ).toBe("連結文字");
+    ).toBe("<a>連結文字</a>");
+  });
+
+  it("keeps https/mailto hrefs and drops other attributes", () => {
+    expect(
+      sanitizeEditorHtml(
+        '<a href="https://ok.example/x" target="_blank" rel="x">連結</a>',
+      ),
+    ).toBe('<a href="https://ok.example/x">連結</a>');
+    expect(sanitizeEditorHtml('<a href="mailto:a@b.c">信</a>')).toBe(
+      '<a href="mailto:a@b.c">信</a>',
+    );
+    // Relative hrefs are stripped too (site-relative links from HackMD notes
+    // would point at liu's own origin and mislead readers).
+    expect(sanitizeEditorHtml('<a href="/local">甲</a>')).toBe("<a>甲</a>");
+  });
+
+  it("passes through the markdown-safe tag set untouched", () => {
+    const html =
+      "<h1>乙</h1><h2>丙</h2><h3>丁</h3><ul><li>甲</li></ul>" +
+      "<ol><li>乙</li></ol><blockquote>引</blockquote><del>刪</del>" +
+      "<p><code>行内碼</code></p><pre>區塊碼</pre><hr>";
+    expect(sanitizeEditorHtml(html)).toBe(html);
+  });
+
+  it("unwraps h4+ and keeps text (heading levels capped at h3)", () => {
+    expect(sanitizeEditorHtml("<h4>深度</h4>")).toBe("深度");
   });
 
   it("returns empty string for empty input", () => {

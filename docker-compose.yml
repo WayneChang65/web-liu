@@ -1,6 +1,6 @@
 services:
   liu-web:
-    image: wayne/liu-web:0.2.0
+    image: wayne/liu-web:0.4.0
     hostname: liu-web
     restart: unless-stopped
     container_name: liu-web
@@ -19,33 +19,31 @@ services:
       - "traefik.http.routers.liu-web.middlewares=authelia@docker"
       # M6: httpd now runs as non-root on 8088 (see Dockerfile)
       - "traefik.http.services.liu-web.loadBalancer.server.port=8088"
-    depends_on:
-      - liu-proxy
+
+      # ---- liu-hackmd-api: /api/hackmd/* 直轉 api.hackmd.io (D9/D11) ----
+      # 較長前綴 rule 優先於 liu-web 的 Host-only rule。前端只寫
+      # /api/hackmd/notes...；replacepathregex 換成上游的 /v1/notes...。
+      # （單用 stripprefix 會剝成 /notes 少一層 /v1 → 404，故用 replacepathregex）
+      - "traefik.http.routers.liu-hackmd.entrypoints=websecure"
+      - "traefik.http.routers.liu-hackmd.rule=Host(`liu.$MY_DOMAIN`) && PathPrefix(`/api/hackmd`)"
+      - "traefik.http.routers.liu-hackmd.tls.certresolver=lets-encr"
+      - "traefik.http.routers.liu-hackmd.middlewares=authelia@docker,liu-hackmd-path"
+      - "traefik.http.routers.liu-hackmd.service=liu-hackmd"
+      - "traefik.http.middlewares.liu-hackmd-path.replacepathregex.regex=^/api/hackmd(/.*)?$$"
+      - "traefik.http.middlewares.liu-hackmd-path.replacepathregex.replacement=/v1$$1"
+      # 外部上游（Traefik v3 合法寫法；Host header 以 server.url 為準）
+      - "traefik.http.services.liu-hackmd.loadbalancer.server.url=https://api.hackmd.io"
+      # 2MB body 上限（沿用原 sidecar）。本版 fork 若对此 label 報
+      # unknown field，刪掉此行即可，不影響直轉本體。
+      - "traefik.http.routers.liu-hackmd.maxbodysize=2097152"
 
 #   ports:
 #     - 8084:8088
 
-  # 「存入HackMD」的 API 轉發器：前端呼叫同網域 /api/hackmd/*，
-  # Traefik 把 /api 前綴優先導向此服務（見 proxy/server.js）。
-  # Token 只經此轉發，不落碟、不記 body。
-  liu-proxy:
-    image: wayne/liu-hackmd-proxy:1.0.0
-    build:
-      context: .
-      dockerfile: Dockerfile-proxy
-    hostname: liu-proxy
-    restart: unless-stopped
-    container_name: liu-proxy
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.liu-proxy.entrypoints=websecure"
-      # 更長的前綴 rule 優先於 liu-web 的 Host-only rule
-      - "traefik.http.routers.liu-proxy.rule=Host(`liu.$MY_DOMAIN`)
-        && PathPrefix(`/api`)"
-      - "traefik.http.routers.liu-proxy.tls.certresolver=lets-encr"
-      # Authelia 沿用：只有通過認證的使用者能使用此轉發器
-      - "traefik.http.routers.liu-proxy.middlewares=authelia@docker"
-      - "traefik.http.services.liu-proxy.loadBalancer.server.port=8088"
+# D9 (2026-09-22): the former liu-proxy sidecar (proxy/server.js +
+# Dockerfile-proxy) is retired — the same-origin /api/hackmd/* requests are
+# forwarded to https://api.hackmd.io/v1/* directly by Traefik via the labels
+# above. `docker compose up -d` will remove the old container as expected.
 
 networks:
   default:

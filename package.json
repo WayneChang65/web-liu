@@ -1,6 +1,6 @@
 {
   "name": "web-liu",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "Web LIU",
   "scripts": {
     "dev": "vite",
@@ -25,6 +25,7 @@
   },
   "homepage": "https://github.com/WayneChang65/web-liu#readme",
   "dependencies": {
+    "marked": "^18.0.14",
     "turndown": "^7.2.2"
   },
   "devDependencies": {

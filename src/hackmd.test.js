@@ -3,38 +3,47 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import TurndownService from "turndown";
 import { sanitizeEditorHtml } from "./sanitize.js";
 import {
-  buildHackmdPayload,
-  postHackmdDoc,
-  initHackmd,
   loadHackmdToken,
-  loadHackmdPrefs,
-} from "./hackmd.js";
+  saveHackmdSettings,
+  listNotes,
+  getNote,
+  createNote,
+  updateNoteContent,
+  HACKMD_API_BASE,
+} from "./hackmd-api.js";
+import { initHackmdSave } from "./hackmd.js";
 
-const DIALOG_HTML = `
-<button id="hackmd-button">存入HackMD</button>
-<div id="top-button-container" class="expanded"></div>
-<dialog id="hackmd-modal">
-    <form id="hackmd-form" method="dialog">
-        <input type="password" id="hackmd-token" />
-        <input type="text" id="hackmd-title" />
-        <input type="text" id="hackmd-description" />
-        <select id="hackmd-permission">
-            <option value="private">private</option>
-            <option value="public">public</option>
-            <option value="team">team</option>
-        </select>
-        <input type="text" id="hackmd-permalink" />
-        <textarea id="hackmd-note"></textarea>
-        <input type="checkbox" id="hackmd-remember" checked />
+const SAVE_DIALOG_HTML = `
+<button id="hackmd-save-button">存入HackMD</button>
+<div id="top-button-container"></div>
+<dialog id="hackmd-save-modal">
+    <h2 id="hackmd-save-heading"></h2>
+    <p id="hackmd-save-bound-note"></p>
+    <form id="hackmd-save-form" method="dialog">
+        <div id="hackmd-save-title-row">
+            <input type="text" id="hackmd-save-title" />
+        </div>
+        <input type="password" id="hackmd-save-token" />
         <button type="button" id="hackmd-save-settings">儲存設定</button>
-        <button type="submit" id="hackmd-submit">存入</button>
-        <button type="button" id="hackmd-cancel">取消</button>
+        <input type="checkbox" id="hackmd-save-remember" checked />
+        <textarea id="hackmd-save-note"></textarea>
+        <button type="submit" id="hackmd-save-submit">存入</button>
+        <button type="button" id="hackmd-save-cancel">取消</button>
     </form>
 </dialog>`;
 
-function setup() {
-  // Static fixture markup — inert-parsed and imported (never innerHTML).
-  const parsed = new DOMParser().parseFromString(DIALOG_HTML, "text/html");
+const originalFetch = globalThis.fetch;
+
+beforeEach(() => {
+  vi.unstubAllGlobals();
+  // Unstubbing alone does not restore happy-dom's own fetch — put it back so
+  // no leaked mock fires real network calls during frame teardown.
+  globalThis.fetch = originalFetch;
+  localStorage.clear();
+});
+
+function setupSave(binding = null) {
+  const parsed = new DOMParser().parseFromString(SAVE_DIALOG_HTML, "text/html");
   document.body.replaceChildren(
     ...Array.from(parsed.body.childNodes, (n) => document.importNode(n, true)),
   );
@@ -44,215 +53,186 @@ function setup() {
   document.body.appendChild(editor);
 
   const toasts = [];
-  const { dialog } = initHackmd({
+  let currentBinding = binding;
+  const { dialog } = initHackmdSave({
     editorEl: editor,
     turndownService: new TurndownService({ headingStyle: "atx" }),
     sanitizeEditorHtml,
     showToast: (m) => toasts.push(m),
+    getBinding: () => currentBinding,
+    setBinding: (b) => {
+      currentBinding = b;
+    },
   });
   return {
     toasts,
     dialog,
+    getBinding: () => currentBinding,
     $: (id) => document.getElementById(id),
   };
 }
 
-const originalFetch = globalThis.fetch;
+async function submit(t) {
+  t.$("hackmd-save-form").dispatchEvent(
+    new Event("submit", { bubbles: true, cancelable: true }),
+  );
+  // let the async handler settle
+  await new Promise((r) => setTimeout(r, 0));
+  await new Promise((r) => setTimeout(r, 0));
+}
 
-beforeEach(() => {
-  vi.unstubAllGlobals();
-  // Unstubbing alone does not restore happy-dom's own fetch — put it back so
-  // no leaked mock fires real network calls during frame teardown.
-  globalThis.fetch = originalFetch;
-});
-
-describe("buildHackmdPayload", () => {
-  it("always includes title and note, omits empty optionals", () => {
-    expect(
-      buildHackmdPayload({
-        title: "T",
-        description: "",
-        note: "N",
-        permission: "",
-        permaLink: "",
-      }),
-    ).toEqual({ title: "T", note: "N" });
-  });
-
-  it("includes optional fields when provided", () => {
-    expect(
-      buildHackmdPayload({
-        title: "T",
-        description: "D",
-        note: "N",
-        permission: "public",
-        permaLink: "my-note",
-      }),
-    ).toEqual({
-      title: "T",
-      description: "D",
-      note: "N",
-      permission: "public",
-      permaLink: "my-note",
-    });
+describe("token storage", () => {
+  it("saves token only when remember is checked; wipes on uncheck", () => {
+    saveHackmdSettings({ token: "tok", remember: true });
+    expect(loadHackmdToken()).toBe("tok");
+    saveHackmdSettings({ token: "tok", remember: false });
+    expect(loadHackmdToken()).toBe("");
   });
 });
 
-describe("postHackmdDoc", () => {
-  it("returns the doc data on a successful API response", async () => {
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: true,
-      status: 200,
-      json: async () => ({
-        ok: true,
-        data: { id: "abc", shortId: "abc", permaLink: "my-note" },
-      }),
-    });
+describe("hackmd-api contract (M0-verified shapes)", () => {
+  it("listNotes hits /api/hackmd/notes and returns the bare array", async () => {
+    const notes = [{ id: "a", title: "甲", lastChangedAt: 2 }];
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue({ ok: true, status: 200, json: async () => notes });
     vi.stubGlobal("fetch", fetchMock);
-
-    const result = await postHackmdDoc({
-      token: "tk",
-      payload: { title: "T", note: "N" },
-    });
-    expect(result).toEqual({
-      ok: true,
-      data: { id: "abc", shortId: "abc", permaLink: "my-note" },
-    });
-
+    const r = await listNotes("tok");
+    expect(r.ok).toBe(true);
+    expect(r.data).toEqual(notes);
     const [url, init] = fetchMock.mock.calls[0];
-    expect(url).toBe("/api/hackmd/v1/docs");
+    expect(url).toBe(HACKMD_API_BASE);
+    expect(init.method).toBe("GET");
+    expect(init.headers.Authorization).toBe("Bearer tok");
+  });
+
+  it("createNote POSTs {title, content} only", async () => {
+    const created = { id: "n1", title: "T", content: "C", shortId: "s" };
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue({ ok: true, status: 201, json: async () => created });
+    vi.stubGlobal("fetch", fetchMock);
+    const r = await createNote("tok", { title: "T", content: "C" });
+    expect(r.ok).toBe(true);
+    const [, init] = fetchMock.mock.calls[0];
     expect(init.method).toBe("POST");
-    expect(init.headers.Authorization).toBe("Bearer tk");
-    expect(JSON.parse(init.body)).toEqual({ title: "T", note: "N" });
+    expect(JSON.parse(init.body)).toEqual({ title: "T", content: "C" });
   });
 
-  it("surfaces the API error message on HTTP failure", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue({
-        ok: false,
-        status: 401,
-        json: async () => ({ error: "invalid token" }),
-      }),
-    );
-    const result = await postHackmdDoc({ token: "bad", payload: {} });
-    expect(result).toEqual({ ok: false, error: "invalid token" });
+  it("updateNoteContent PATCHes {content} to /notes/{id}", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue({ ok: true, status: 202, json: async () => null });
+    vi.stubGlobal("fetch", fetchMock);
+    const r = await updateNoteContent("tok", "id/1", "新內容");
+    expect(r.ok).toBe(true);
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe(`${HACKMD_API_BASE}/id%2F1`);
+    expect(init.method).toBe("PATCH");
+    expect(JSON.parse(init.body)).toEqual({ content: "新內容" });
   });
 
-  it("reports a proxy/network failure without throwing", async () => {
+  it("401 maps to a token error message", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 401, json: async () => null }));
+    const r = await listNotes("bad");
+    expect(r.ok).toBe(false);
+    expect(r.status).toBe(401);
+    expect(r.error).toContain("Token");
+  });
+
+  it("network failure returns ok:false without throwing", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn().mockRejectedValue(new TypeError("Failed to fetch")),
     );
-    const result = await postHackmdDoc({ token: "tk", payload: {} });
-    expect(result.ok).toBe(false);
-    expect(result.error).toContain("代理");
-  });
-
-  it("falls back to the HTTP status when the body is not JSON", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue({
-        ok: false,
-        status: 502,
-        json: async () => {
-          throw new SyntaxError("not json");
-        },
-      }),
-    );
-    const result = await postHackmdDoc({ token: "tk", payload: {} });
-    expect(result.ok).toBe(false);
-    expect(result.error).toContain("502");
+    const r = await getNote("tok", "x");
+    expect(r.ok).toBe(false);
+    expect(r.status).toBe(0);
   });
 });
 
-describe("initHackmd dialog flow", () => {
-  it("opens with editor content converted to markdown", () => {
-    const { dialog, $ } = setup();
-    $("hackmd-button").click();
-    expect(dialog.open).toBe(true);
-    expect($("hackmd-note").value).toContain("測試內容");
-    // default title prefilled from first line
-    expect($("hackmd-title").value).toBe("測試內容");
-  });
-
-  it("rejects submit without token and keeps dialog open", async () => {
-    const { dialog, toasts, $ } = setup();
-    $("hackmd-button").click();
-    $("hackmd-title").value = "標題";
-    $("hackmd-form").dispatchEvent(new Event("submit", { cancelable: true }));
-    await vi.waitFor(() => expect(toasts.length).toBeGreaterThan(0));
-    expect(toasts.at(-1)).toContain("Token");
-    expect(dialog.open).toBe(true);
-  });
-
-  it("rejects an invalid permaLink before any network call", async () => {
+describe("initHackmdSave — new-note mode", () => {
+  it("requires token and title; creates note then binds the tab", async () => {
+    const t = setupSave(null);
+    t.$("hackmd-save-button").click();
+    // empty token -> toast, no fetch
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
-    const { dialog, toasts, $ } = setup();
-    $("hackmd-button").click();
-    $("hackmd-token").value = "tk";
-    $("hackmd-title").value = "標題";
-    $("hackmd-permalink").value = "中文 id!";
-    $("hackmd-form").dispatchEvent(new Event("submit", { cancelable: true }));
-    await vi.waitFor(() => expect(toasts.length).toBeGreaterThan(0));
-    expect(toasts.at(-1)).toContain("自有代稱");
+    await submit(t);
+    expect(t.toasts.at(-1)).toContain("Token");
     expect(fetchMock).not.toHaveBeenCalled();
-    expect(dialog.open).toBe(true);
-  });
 
-  it("saves the doc and persists settings on success", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+    // empty title -> toast
+    t.$("hackmd-save-token").value = "tok";
+    t.$("hackmd-save-title").value = "  ";
+    await submit(t);
+    expect(t.toasts.at(-1)).toContain("標題");
+    expect(fetchMock).not.toHaveBeenCalled();
+
+    // good path
+    t.$("hackmd-save-title").value = "新筆記";
+    fetchMock.mockResolvedValue({
       ok: true,
-      status: 200,
-      json: async () => ({ ok: true, data: { shortId: "abc123" } }),
-    }));
-    const { dialog, toasts, $ } = setup();
-    $("hackmd-button").click();
-    $("hackmd-token").value = " tk-token ";
-    $("hackmd-title").value = "我的筆記";
-    $("hackmd-permission").value = "public";
-    $("hackmd-form").dispatchEvent(new Event("submit", { cancelable: true }));
-
-    await vi.waitFor(() => expect(dialog.open).toBe(false));
-    expect(toasts.at(-1)).toContain("abc123");
-    expect(loadHackmdToken()).toBe("tk-token");
-    expect(loadHackmdPrefs()).toMatchObject({
-      permission: "public",
-      remember: true,
+      status: 201,
+      json: async () => ({ id: "abc", title: "新筆記", shortId: "S" }),
     });
+    await submit(t);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe(HACKMD_API_BASE);
+    expect(init.method).toBe("POST");
+    const body = JSON.parse(init.body);
+    expect(body.title).toBe("新筆記");
+    expect(body.content).toContain("測試內容");
+    expect(t.getBinding()).toEqual({ noteId: "abc", title: "新筆記" });
   });
 
-  it("keeps the dialog open and shows the error when the API fails", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
-      ok: false,
-      status: 403,
-      json: async () => ({ error: "forbidden" }),
-    }));
-    const { dialog, toasts, $ } = setup();
-    $("hackmd-button").click();
-    $("hackmd-token").value = "tk";
-    $("hackmd-title").value = "標題";
-    $("hackmd-form").dispatchEvent(new Event("submit", { cancelable: true }));
-
-    await vi.waitFor(() => expect(toasts.length).toBeGreaterThan(0));
-    expect(toasts.at(-1)).toBe("forbidden");
-    expect(dialog.open).toBe(true);
-    // submit button restored for retry
-    expect($("hackmd-submit").disabled).toBe(false);
-    expect($("hackmd-submit").textContent).toBe("存入");
+  it("prefills title from first markdown line when empty", () => {
+    const t = setupSave(null);
+    vi.stubGlobal("fetch", vi.fn());
+    t.$("hackmd-save-button").click();
+    expect(t.$("hackmd-save-title").value).toBe("測試內容");
   });
 
-  it("unchecking remember wipes stored token and prefs", async () => {
-    localStorage.setItem("boshiamy-hackmd-token", "old");
-    localStorage.setItem("boshiamy-hackmd-prefs", JSON.stringify({ remember: true }));
-    const { $ } = setup();
-    $("hackmd-button").click();
-    // prefilled from storage
-    expect($("hackmd-token").value).toBe("old");
-    $("hackmd-remember").checked = false;
-    $("hackmd-save-settings").click();
-    expect(loadHackmdToken()).toBe("");
-    expect(loadHackmdPrefs()).toEqual({});
+  it("refuses to open the dialog when the editor is empty", () => {
+    const t = setupSave(null);
+    document.getElementById("main-editor").innerHTML = "   ";
+    vi.stubGlobal("fetch", vi.fn());
+    t.$("hackmd-save-button").click();
+    expect(t.dialog.open).toBe(false);
+    expect(t.toasts.at(-1)).toContain("空的");
+  });
+});
+
+describe("initHackmdSave — update mode (bound)", () => {
+  it("PATCHes without requiring a title, keeps binding", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 202, json: async () => null });
+    vi.stubGlobal("fetch", fetchMock);
+    const t = setupSave({ noteId: "note9", title: "綁定檔" });
+    t.$("hackmd-save-button").click();
+    // heading reflects update mode
+    expect(t.$("hackmd-save-heading").textContent).toContain("更新");
+    t.$("hackmd-save-token").value = "tok";
+    // happy-dom dialogs do not block on confirm(); the module calls global
+    // confirm — stub it to approve so the PATCH path runs.
+    vi.stubGlobal("confirm", () => true);
+    await submit(t);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe(`${HACKMD_API_BASE}/note9`);
+    expect(init.method).toBe("PATCH");
+    expect(JSON.parse(init.body).content).toContain("測試內容");
+    expect(t.getBinding()).toEqual({ noteId: "note9", title: "綁定檔" });
+  });
+
+  it("cancelling the update confirm sends nothing", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    vi.stubGlobal("confirm", () => false);
+    const t = setupSave({ noteId: "note9", title: "綁定檔" });
+    t.$("hackmd-save-button").click();
+    t.$("hackmd-save-token").value = "tok";
+    await submit(t);
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });

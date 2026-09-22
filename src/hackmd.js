@@ -1,158 +1,95 @@
-// --- HACKMD EXPORT ---
+// --- "存入HackMD" — new save module (D10 replaced the broken legacy one) ---
 //
-// Posts the editor content (converted to Markdown) to HackMD via the official
-// API. HackMD's API sends no CORS headers, so requests go through a
-// same-origin proxy mounted at /api/hackmd (vite dev proxy in development,
-// the sidecar container in production — see proxy/server.js).
+// Two modes, chosen by whether the current editor tab is bound to a note:
+//   bound    -> PATCH note content in place (light confirm, D3)
+//   unbound  -> "另存新檔" form: title + token + remember (lean fields only)
 //
-// The API token is supplied by the user and forwarded per-request; the proxy
-// never persists it. It is kept in localStorage only when the user opts in
-// via the "記住" checkbox.
+// Content pipeline: editor HTML -> sanitize -> Turndown -> Markdown (same as
+// the old export path, which is not part of the deleted feature).
+// Tab bindings live in main.js (Map<tabId, {noteId, title}>); this module
+// asks for the current binding via deps.
 
-const HACKMD_API_PATH = "/api/hackmd/v1/docs";
-const TOKEN_KEY = "boshiamy-hackmd-token";
-const PREFS_KEY = "boshiamy-hackmd-prefs";
-const PERMALINK_RE = /^[A-Za-z0-9_-]{3,100}$/;
-
-export function loadHackmdToken() {
-  return localStorage.getItem(TOKEN_KEY) || "";
-}
-
-export function loadHackmdPrefs() {
-  try {
-    return JSON.parse(localStorage.getItem(PREFS_KEY)) || {};
-  } catch {
-    return {};
-  }
-}
-
-/** Persist token + form defaults; unchecking remember wipes both. */
-function saveSettings({ token, remember, permission, permaLink }) {
-  if (remember) {
-    localStorage.setItem(TOKEN_KEY, token);
-    localStorage.setItem(
-      PREFS_KEY,
-      JSON.stringify({ permission, permaLink, remember: true }),
-    );
-  } else {
-    localStorage.removeItem(TOKEN_KEY);
-    localStorage.removeItem(PREFS_KEY);
-  }
-}
+import {
+  loadHackmdToken,
+  loadHackmdPrefs,
+  saveHackmdSettings,
+  createNote,
+  updateNoteContent,
+} from "./hackmd-api.js";
 
 /**
- * Assemble the HackMD POST body. Optional fields are omitted when empty so
- * the API applies its own defaults.
- */
-export function buildHackmdPayload({
-  title,
-  description,
-  note,
-  permission,
-  permaLink,
-}) {
-  const payload = { title, note };
-  if (description) payload.description = description;
-  if (permission) payload.permission = permission;
-  if (permaLink) payload.permaLink = permaLink;
-  return payload;
-}
-
-/**
- * POST a payload to HackMD through the same-origin proxy.
- * Returns { ok, data } on success or { ok: false, error } on failure —
- * never throws, so the caller only deals with user-visible messages.
- */
-export async function postHackmdDoc({ token, payload }) {
-  let res;
-  try {
-    res = await fetch(HACKMD_API_PATH, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
-    });
-  } catch {
-    // Network-level failure: proxy down, offline, DNS, etc.
-    return { ok: false, error: "連不上 HackMD 代理，請稍後再試。" };
-  }
-
-  let data = null;
-  try {
-    data = await res.json();
-  } catch {
-    /* non-JSON body; fall through to status-based error */
-  }
-
-  if (res.ok && data && data.ok && data.data) {
-    return { ok: true, data: data.data };
-  }
-
-  const error =
-    (data && data.error) || `HackMD 回覆錯誤（HTTP ${res.status}）`;
-  return { ok: false, error };
-}
-
-/**
- * Wire the "存入HackMD" dialog. `deps` injects everything this module needs
- * from the page so it stays independently testable.
- *   deps.editorEl    — contenteditable editor
- *   deps.turndownService — TurndownService instance (HTML → Markdown)
- *   deps.sanitizeEditorHtml — allowlist sanitizer for editor HTML
+ * Wire the save dialog + button. deps:
+ *   deps.editorEl                    — contenteditable editor
+ *   deps.turndownService             — TurndownService instance (HTML → MD)
+ *   deps.sanitizeEditorHtml
  *   deps.showToast(message)
- *
- * Returns { open, dialog } for callers (e.g. main.js) that trigger the modal.
+ *   deps.getBinding()                — {noteId, title} | null for current tab
+ *   deps.setBinding(binding|null)    — update after 另存新檔 / 開啟
+ * Returns { open, dialog } for main.js wiring.
  */
-export function initHackmd(deps) {
-  const { editorEl, turndownService, sanitizeEditorHtml, showToast } = deps;
+export function initHackmdSave(deps) {
+  const {
+    editorEl,
+    turndownService,
+    sanitizeEditorHtml,
+    showToast,
+    getBinding,
+    setBinding,
+  } = deps;
 
-  const button = document.getElementById("hackmd-button");
-  const dialog = document.getElementById("hackmd-modal");
+  const button = document.getElementById("hackmd-save-button");
+  const dialog = document.getElementById("hackmd-save-modal");
   if (!button || !dialog) return { open: () => {}, dialog: null };
 
-  const form = dialog.querySelector("#hackmd-form");
-  const tokenInput = dialog.querySelector("#hackmd-token");
-  const titleInput = dialog.querySelector("#hackmd-title");
-  const descInput = dialog.querySelector("#hackmd-description");
-  const permissionSelect = dialog.querySelector("#hackmd-permission");
-  const permaLinkInput = dialog.querySelector("#hackmd-permalink");
-  const noteInput = dialog.querySelector("#hackmd-note");
-  const rememberInput = dialog.querySelector("#hackmd-remember");
+  const heading = dialog.querySelector("#hackmd-save-heading");
+  const boundNote = dialog.querySelector("#hackmd-save-bound-note");
+  const titleRow = dialog.querySelector("#hackmd-save-title-row");
+  const titleInput = dialog.querySelector("#hackmd-save-title");
+  const tokenInput = dialog.querySelector("#hackmd-save-token");
+  const rememberInput = dialog.querySelector("#hackmd-save-remember");
   const saveSettingsButton = dialog.querySelector("#hackmd-save-settings");
-  const submitButton = dialog.querySelector("#hackmd-submit");
-  const cancelButton = dialog.querySelector("#hackmd-cancel");
+  const notePreview = dialog.querySelector("#hackmd-save-note");
+  const form = dialog.querySelector("#hackmd-save-form");
+  const submitButton = dialog.querySelector("#hackmd-save-submit");
+  const cancelButton = dialog.querySelector("#hackmd-save-cancel");
 
-  function currentSettings() {
-    return {
-      token: tokenInput.value.trim(),
-      remember: rememberInput.checked,
-      permission: permissionSelect.value,
-      permaLink: permaLinkInput.value.trim(),
-    };
+  function editorMarkdown() {
+    const html = sanitizeEditorHtml(editorEl.innerHTML);
+    return turndownService.turndown(html);
   }
 
   function open() {
-    // Prefill token/prefs from localStorage.
-    const prefs = loadHackmdPrefs();
-    tokenInput.value = loadHackmdToken();
-    rememberInput.checked = prefs.remember !== false;
-    if (prefs.permission) permissionSelect.value = prefs.permission;
-    if (prefs.permaLink) permaLinkInput.value = prefs.permaLink;
-
-    // Prefill content: sanitized editor HTML → Markdown, description prepended
-    // happens server-side via the description field, so note stays pure content.
-    const html = sanitizeEditorHtml(editorEl.innerHTML);
-    noteInput.value = turndownService.turndown(html);
-    if (!titleInput.value) {
-      // Sensible default title: first non-empty line, truncated.
-      const firstLine = (turndownService.turndown(html).split("\n")[0] || "")
-        .replace(/^#+\s*/, "")
-        .trim();
-      titleInput.value = firstLine.slice(0, 60);
+    const md = editorMarkdown();
+    if (!md.trim()) {
+      showToast("編輯區是空的，沒有可以存入的內容");
+      return;
     }
+    tokenInput.value = loadHackmdToken();
+    rememberInput.checked = loadHackmdPrefs().remember !== false;
+    const binding = getBinding();
 
+    if (binding) {
+      // Update mode: lean confirm sheet (D3).
+      heading.textContent = "存入 HackMD（更新原檔）";
+      boundNote.textContent = `將更新：《${binding.title || "（無標題）"}》`;
+      boundNote.style.display = "block";
+      titleRow.style.display = "none";
+      submitButton.textContent = "更新原檔";
+      notePreview.value = md;
+    } else {
+      // Save-as-new mode: title required.
+      heading.textContent = "存入 HackMD（另存新檔）";
+      boundNote.style.display = "none";
+      titleRow.style.display = "block";
+      submitButton.textContent = "存入新檔";
+      notePreview.value = md;
+      if (!titleInput.value) {
+        const firstLine = (md.split("\n")[0] || "")
+          .replace(/^#+\s*/, "")
+          .trim();
+        titleInput.value = firstLine.slice(0, 60);
+      }
+    }
     dialog.showModal();
   }
 
@@ -163,15 +100,18 @@ export function initHackmd(deps) {
   });
 
   saveSettingsButton.addEventListener("click", () => {
-    saveSettings(currentSettings());
+    saveHackmdSettings({
+      token: tokenInput.value.trim(),
+      remember: rememberInput.checked,
+    });
     showToast("已儲存 HackMD 設定");
   });
 
   cancelButton.addEventListener("click", () => dialog.close());
 
   form.addEventListener("submit", async (e) => {
-    // <form method="dialog"> would close on submit; we manage closing ourselves
-    // so the dialog stays open (with the error visible) when the API fails.
+    // We manage closing ourselves so the dialog stays open (with the error
+    // visible) when the API fails.
     e.preventDefault();
 
     const token = tokenInput.value.trim();
@@ -180,34 +120,41 @@ export function initHackmd(deps) {
       tokenInput.focus();
       return;
     }
-    if (!titleInput.value.trim()) {
+
+    const binding = getBinding();
+    const content = notePreview.value;
+
+    if (!binding && !titleInput.value.trim()) {
       showToast("請填入標題");
       titleInput.focus();
       return;
     }
-    const permaLink = permaLinkInput.value.trim();
-    if (permaLink && !PERMALINK_RE.test(permaLink)) {
-      showToast("自有代稱僅限英文、數字、底線與連字號（3-100 字）");
-      permaLinkInput.focus();
-      return;
+    if (binding) {
+      const proceed = confirm(`確定要更新《${binding.title || "（無標題）"}》的內容？`);
+      if (!proceed) return;
     }
-
-    const payload = buildHackmdPayload({
-      title: titleInput.value.trim(),
-      description: descInput.value.trim(),
-      note: noteInput.value,
-      permission: permissionSelect.value,
-      permaLink,
-    });
 
     submitButton.disabled = true;
     const originalText = submitButton.textContent;
     submitButton.textContent = "存入中…";
     try {
-      const result = await postHackmdDoc({ token, payload });
+      const result = binding
+        ? await updateNoteContent(token, binding.noteId, content)
+        : await createNote(token, {
+            title: titleInput.value.trim(),
+            content,
+          });
+
       if (result.ok) {
-        saveSettings(currentSettings());
-        showToast(`已存入 HackMD：${result.data.permaLink || result.data.shortId}`);
+        saveHackmdSettings({ token, remember: rememberInput.checked });
+        if (binding) {
+          showToast("已更新 HackMD 原檔");
+        } else {
+          const created = result.data || {};
+          // 另存成功後分頁即綁定新檔，之後再存就是原地更新。
+          setBinding({ noteId: created.id, title: created.title || titleInput.value.trim() });
+          showToast(`已存入 HackMD：${created.shortId || created.title || ""}`);
+        }
         dialog.close();
       } else {
         showToast(result.error);
