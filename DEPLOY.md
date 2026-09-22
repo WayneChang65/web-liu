@@ -43,7 +43,11 @@ sudo docker compose up -d
 > 2. `Router liu-web cannot be linked automatically with multiple Services`：
 >    一容器掛兩 service（liu-web/liu-hackmd）時 Docker provider 拒絕自動猜 →
 >    repo 已補 `traefik.http.routers.liu-web.service=liu-web` 明示綁定。
-> 若 log 仍見以上兩行 → `git pull` ＋ `sudo docker compose up -d`（不必重 build）。
+> 3. `/api/hackmd/*` 到 o1 後回 HackMD 的 404 錯誤頁（log 全乾淨也會發生）：
+>    `passHostHeader` 預設 true，Traefik 把 liu 網域當 Host 送給 HackMD 被拒 →
+>    repo 已補 `traefik.http.services.liu-hackmd.loadbalancer.passHostHeader=false`。
+>    （無 token 時正確表現是 **400 Bad Request**，不是 401。）
+> 若 log/行為仍見以上三項 → `git pull` ＋ `sudo docker compose up -d`（不必重 build）。
 
 ```bash
 sudo docker logs traefik 2>&1 | tail -30
@@ -56,10 +60,11 @@ sudo docker logs liu-web 2>&1 | tail -5
 # liu-web 正常聆聽，無重啟迴圈
 
 curl -s -o /dev/null -w '%{http_code}\n' https://liu.$(grep MY_DOMAIN .env | cut -d= -f2)/
-# 主站點：期望 302/401（Authelia 擋未登入）＝正常；502/404 異常
+# 主站點：本機實況為 200（liu 站經 Authelia 放行公開）；502/404 異常
 
 curl -s -o /dev/null -w '%{http_code}\n' https://liu.$(grep MY_DOMAIN .env | cut -d= -f2)/api/hackmd/notes
-# 直轉 router：未帶 Authelia cookie 期望同為 302/401；若 404=router 沒生效（回報）
+# 直轉 router：未帶 token 期望 400（HackMD 自己擋＝路徑與 Host 都正確）；
+# 404＝passHostHeader 修復沒生效（回報），502/其他＝Traefik 層異常
 ```
 
 瀏覽器終驗（主人方便時）：

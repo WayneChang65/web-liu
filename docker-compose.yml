@@ -35,8 +35,13 @@ services:
       - "traefik.http.routers.liu-hackmd.service=liu-hackmd"
       - "traefik.http.middlewares.liu-hackmd-path.replacepathregex.regex=^/api/hackmd(/.*)?$$"
       - "traefik.http.middlewares.liu-hackmd-path.replacepathregex.replacement=/v1$$1"
-      # 外部上游（Traefik v3 合法寫法；Host header 以 server.url 為準）
+      # 外部上游（Traefik v3 合法寫法）
       - "traefik.http.services.liu-hackmd.loadbalancer.server.url=https://api.hackmd.io"
+      # passHostHeader 預設 true 會把 liu.wayne65.cc 當 Host 送給 HackMD →
+      # HackMD 認不得這 Host 直接回 404 錯誤頁（2026-09-22 o1 實測抓包證實；
+      # gx10 實驗室用同版 fork＋whoami 顯微鏡確認，關掉後 404→400 Bad Request）。
+      # 必須 false：讓 Traefik 用 server.url 的 api.hackmd.io 作 Host。
+      - "traefik.http.services.liu-hackmd.loadbalancer.passHostHeader=false"
       # （2026-09-22 o1 實測：felixbuenemann fork 對 maxbodysize 報
       #  field not found → 整組 router label 解析失敗，已依手冊刪除。
       #  body 大小改由 HackMD 端與 Authelia 端自然限縮，不再於此限制。）
