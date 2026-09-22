@@ -36,11 +36,14 @@ sudo docker compose up -d
 
 ## D. 驗證（部署後照順序，全部通過才算成功）
 
-> **D0 已知陷阱（2026-09-22 實測觸發，已修）**：舊版 compose 的
-> `traefik.http.routers.liu-hackmd.maxbodysize` label 在本 fork
-> （felixbuenemann/traefik:v3.6.1）報 `field not found, node: maxbodysize`，
-> 且會拖垮整個 liu-web 容器的 router 註冊。repo 已刪除此 label；
-> 若 log 仍見此行 → `git pull` ＋ `sudo docker compose up -d`（不必重 build）。
+> **D0 已知陷阱（2026-09-22 實測觸發，已修）**：
+> 1. 舊版 compose 的 `traefik.http.routers.liu-hackmd.maxbodysize` label 在本 fork
+>    （felixbuenemann/traefik:v3.6.1）報 `field not found, node: maxbodysize`，
+>    且會拖垮整個 liu-web 容器的 router 註冊 → repo 已刪除此 label。
+> 2. `Router liu-web cannot be linked automatically with multiple Services`：
+>    一容器掛兩 service（liu-web/liu-hackmd）時 Docker provider 拒絕自動猜 →
+>    repo 已補 `traefik.http.routers.liu-web.service=liu-web` 明示綁定。
+> 若 log 仍見以上兩行 → `git pull` ＋ `sudo docker compose up -d`（不必重 build）。
 
 ```bash
 sudo docker logs traefik 2>&1 | tail -30

@@ -17,6 +17,10 @@ services:
       - "traefik.http.routers.liu-web.rule=Host(`liu.$MY_DOMAIN`)"
       - "traefik.http.routers.liu-web.tls.certresolver=lets-encr"
       - "traefik.http.routers.liu-web.middlewares=authelia@docker"
+      # 本容器掛了兩個 service（liu-web/liu-hackmd），Docker provider 無法自動
+      # 猜 router 要連哪個 → 報 "cannot be linked automatically with multiple
+      # Services"，必須兩個 router 都明示綁定（2026-09-22 o1 實測）。
+      - "traefik.http.routers.liu-web.service=liu-web"
       # M6: httpd now runs as non-root on 8088 (see Dockerfile)
       - "traefik.http.services.liu-web.loadBalancer.server.port=8088"
 
