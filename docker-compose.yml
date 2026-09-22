@@ -33,9 +33,9 @@ services:
       - "traefik.http.middlewares.liu-hackmd-path.replacepathregex.replacement=/v1$$1"
       # 外部上游（Traefik v3 合法寫法；Host header 以 server.url 為準）
       - "traefik.http.services.liu-hackmd.loadbalancer.server.url=https://api.hackmd.io"
-      # 2MB body 上限（沿用原 sidecar）。本版 fork 若对此 label 報
-      # unknown field，刪掉此行即可，不影響直轉本體。
-      - "traefik.http.routers.liu-hackmd.maxbodysize=2097152"
+      # （2026-09-22 o1 實測：felixbuenemann fork 對 maxbodysize 報
+      #  field not found → 整組 router label 解析失敗，已依手冊刪除。
+      #  body 大小改由 HackMD 端與 Authelia 端自然限縮，不再於此限制。）
 
 #   ports:
 #     - 8084:8088

@@ -36,10 +36,18 @@ sudo docker compose up -d
 
 ## D. 驗證（部署後照順序，全部通過才算成功）
 
+> **D0 已知陷阱（2026-09-22 實測觸發，已修）**：舊版 compose 的
+> `traefik.http.routers.liu-hackmd.maxbodysize` label 在本 fork
+> （felixbuenemann/traefik:v3.6.1）報 `field not found, node: maxbodysize`，
+> 且會拖垮整個 liu-web 容器的 router 註冊。repo 已刪除此 label；
+> 若 log 仍見此行 → `git pull` ＋ `sudo docker compose up -d`（不必重 build）。
+
 ```bash
 sudo docker logs traefik 2>&1 | tail -30
-# 看 traefik 有無 parse error / unknown field（若報 liu-hackmd 相關 label 錯誤→把那行
-# label 從 compose 拿掉再 up -d，回報小青；寧可不限制 body 大小也不能讓 router 起不來）
+# 看 traefik 有無 parse error / field not found（重點 grep：
+# sudo docker logs traefik 2>&1 | grep -iE 'err|field not found' | tail）
+# 若還有 liu-hackmd/liu-web 相關 label 錯誤→把那行 label 從 compose 拿掉再
+# up -d，回報小青；寧可不限制 body 大小也不能讓 router 起不來
 
 sudo docker logs liu-web 2>&1 | tail -5
 # liu-web 正常聆聽，無重啟迴圈
