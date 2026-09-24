@@ -43,37 +43,52 @@ h1 {
   position: relative;
 }
 
-#main-editor {
+/* cm5-refactor: the editor is a CodeMirror 5 instance mounted in #editor-cm.
+   Font size is applied inline on the wrapper (D24 whole-editor zoom). */
+#editor-cm .CodeMirror {
+  height: 300px;
+  border: 1px solid #d1d5db;
+  border-radius: 0.75rem;
+  font-size: 1.2rem;
+  line-height: 1.6;
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang TC",
+    "Hiragino Sans", "Microsoft JhengHei", "Heiti TC", "Noto Sans TC",
+    "Helvetica Neue", Arial, sans-serif;
+  transition:
+    border-color 0.3s,
+    height 0.3s ease-in-out;
+  text-align: left;
+}
+
+#editor-cm .CodeMirror-focused {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 1px #3b82f6;
+}
+
+#editor-cm .CodeMirror-lines {
+  padding: 15px 0;
+}
+
+/* Preview pane (D22 full-page toggle): same footprint as the editor box. */
+#preview-pane {
   width: 100%;
   height: 300px;
   padding: 15px;
   border: 1px solid #d1d5db;
   border-radius: 0.75rem;
-  font-size: 1.2rem;
-  line-height: 1.6;
+  font-size: 1.05rem;
+  line-height: 1.7;
   box-sizing: border-box;
+  text-align: left;
+  overflow-y: auto;
+  background-color: #ffffff;
   transition:
     border-color 0.3s,
-    height 0.3s ease-in-out,
-    font-size 0.2s ease-in-out;
-  text-align: left; /* Align text to the left */
-  overflow-y: auto; /* Ensure scrolling */
+    height 0.3s ease-in-out;
 }
-
-/* Replicate placeholder for contenteditable div.
-   L4: driven solely by the data-empty attribute (managed in JS) — the
-   :empty selector kept the placeholder visible while composing boshiamy
-   codes (the editor stays empty until a character is committed). */
-#main-editor[data-empty]::before {
-  content: attr(placeholder);
-  color: #9ca3af;
-  pointer-events: none;
-}
-
-#main-editor:focus {
-  outline: none;
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 1px #3b82f6;
+#preview-pane[hidden] {
+  display: none;
 }
 
 #ime-bar {
@@ -168,6 +183,7 @@ h1 {
 #immersive-toggle-button,
 #hackmd-open-button,
 #hackmd-save-button,
+#preview-toggle-button,
 #theme-toggle-button {
   padding: 8px 15px;
   font-size: 0.9rem;
@@ -189,6 +205,7 @@ h1 {
 #immersive-toggle-button:hover,
 #hackmd-open-button:hover,
 #hackmd-save-button:hover,
+#preview-toggle-button:hover,
 #theme-toggle-button:hover {
   transform: translateY(-1px);
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
@@ -200,6 +217,7 @@ h1 {
 #restore-button,
 #hackmd-open-button,
 #hackmd-save-button,
+#preview-toggle-button,
 #save-temp-button {
   background-color: #eff6ff; /* Light blue */
   color: #3b82f6; /* Accent blue */
@@ -210,6 +228,7 @@ h1 {
 #restore-button:hover,
 #hackmd-open-button:hover,
 #hackmd-save-button:hover,
+#preview-toggle-button:hover,
 #save-temp-button:hover {
   background-color: #dbeafe;
   border-color: #bfdbfe;
@@ -311,16 +330,25 @@ body.dark-mode #logo-container img.disabled-logo {
   filter: invert(1) grayscale(100%) opacity(0.5);
 }
 
-body.dark-mode #main-editor {
+body.dark-mode #editor-cm .CodeMirror {
   background-color: #101010; /* Slightly off-black */
   color: #e2e8f0;
   border-color: #334155;
-  border-radius: 0.75rem;
 }
 
-body.dark-mode #main-editor:focus {
+body.dark-mode #editor-cm .CodeMirror-focused {
   border-color: #22d3ee;
   box-shadow: 0 0 8px rgba(34, 211, 238, 0.3);
+}
+
+body.dark-mode #editor-cm .CodeMirror-cursor {
+  border-left-color: #22d3ee;
+}
+
+body.dark-mode #preview-pane {
+  background-color: #101010;
+  color: #e2e8f0;
+  border-color: #334155;
 }
 
 body.dark-mode #ime-bar {
@@ -413,7 +441,8 @@ body.immersive-mode .container {
   box-sizing: border-box;
 }
 
-body.immersive-mode #main-editor {
+body.immersive-mode #editor-cm .CodeMirror,
+body.immersive-mode #preview-pane {
   height: calc(100vh - 150px); /* Adjust based on other elements */
 }
 
@@ -974,36 +1003,35 @@ body.dark-mode #hackmd-save-bound-note {
   color: #22d3ee;
 }
 
-/* --- Markdown 內容樣式（開檔渲染後於編輯區顯示；D6） ---
-   每個新標籤的 IME 行為都在 §3.1 迴歸矩陣驗收；此處只管外觀。 */
-#main-editor h1,
-#main-editor h2,
-#main-editor h3 {
+/* --- Markdown 內容樣式（cm5-refactor：預覽面板專用；D6/D22） --- */
+#preview-pane h1,
+#preview-pane h2,
+#preview-pane h3 {
   margin: 0.5em 0 0.3em;
   font-weight: 700;
   line-height: 1.35;
 }
-#main-editor h1 { font-size: 1.5em; }
-#main-editor h2 { font-size: 1.3em; }
-#main-editor h3 { font-size: 1.15em; }
+#preview-pane h1 { font-size: 1.5em; }
+#preview-pane h2 { font-size: 1.3em; }
+#preview-pane h3 { font-size: 1.15em; }
 
-#main-editor ul,
-#main-editor ol {
+#preview-pane ul,
+#preview-pane ol {
   margin: 0.3em 0;
   padding-left: 2em;
 }
-#main-editor ul { list-style-type: disc; }
-#main-editor ol { list-style-type: decimal; }
-#main-editor li { margin: 0.15em 0; }
+#preview-pane ul { list-style-type: disc; }
+#preview-pane ol { list-style-type: decimal; }
+#preview-pane li { margin: 0.15em 0; }
 
-#main-editor blockquote {
+#preview-pane blockquote {
   margin: 0.4em 0;
   padding: 0.2em 0.9em;
   border-left: 3px solid #93c5fd;
   color: #6b7280;
 }
 
-#main-editor code {
+#preview-pane code {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 0.9em;
   background-color: #f3f4f6;
@@ -1011,7 +1039,7 @@ body.dark-mode #hackmd-save-bound-note {
   padding: 0 0.3em;
 }
 
-#main-editor pre {
+#preview-pane pre {
   margin: 0.4em 0;
   padding: 0.6em 0.8em;
   background-color: #f3f4f6;
@@ -1021,49 +1049,92 @@ body.dark-mode #hackmd-save-bound-note {
   white-space: pre-wrap;
 }
 
-#main-editor pre code {
+#preview-pane pre code {
   background-color: transparent;
   padding: 0;
 }
 
-#main-editor a {
+#preview-pane a {
   color: #3b82f6;
 }
 
-#main-editor hr {
+#preview-pane hr {
   border: none;
   border-top: 1px solid #d1d5db;
   margin: 0.8em 0;
 }
 
-#main-editor del {
+#preview-pane del {
   color: #9ca3af;
 }
 
-body.dark-mode #main-editor blockquote {
+body.dark-mode #preview-pane blockquote {
   border-left-color: #22d3ee;
   color: #9ca3b8;
 }
 
-body.dark-mode #main-editor code,
-body.dark-mode #main-editor pre {
+body.dark-mode #preview-pane code,
+body.dark-mode #preview-pane pre {
   background-color: #1f2937;
   border-color: #334155;
 }
 
-body.dark-mode #main-editor a {
+body.dark-mode #preview-pane a {
   color: #22d3ee;
 }
 
-body.dark-mode #main-editor hr {
+body.dark-mode #preview-pane hr {
   border-top-color: #334155;
 }
 
-body.dark-mode #main-editor del {
+body.dark-mode #preview-pane del {
   color: #64748b;
 }
 
 body.dark-mode #toast {
   background-color: #22d3ee;
   color: #000000;
+}
+
+/* --- cm5-refactor: preview extras --- */
+#preview-pane table {
+  border-collapse: collapse;
+  margin: 0.5em 0;
+}
+#preview-pane th,
+#preview-pane td {
+  border: 1px solid #d1d5db;
+  padding: 4px 10px;
+}
+#preview-pane th {
+  background-color: #f3f4f6;
+}
+#preview-pane img {
+  max-width: 100%;
+}
+#preview-pane .mermaid-frame {
+  border: none;
+  width: 100%;
+  min-height: 120px;
+  background: transparent;
+}
+#preview-pane .mermaid-error {
+  color: #b45309;
+  font-size: 0.85em;
+}
+#preview-pane .katex-error {
+  color: #b91c1c;
+}
+body.dark-mode #preview-pane th,
+body.dark-mode #preview-pane td {
+  border-color: #334155;
+}
+body.dark-mode #preview-pane th {
+  background-color: #1f2937;
+}
+body.dark-mode #preview-pane .mermaid-error {
+  color: #fbbf24;
+}
+body.dark-mode #preview-pane .katex-error {
+  color: #f87171;
 }

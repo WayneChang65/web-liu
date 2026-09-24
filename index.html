@@ -29,6 +29,7 @@
             <button id="restore-button">讀回暫存</button>
             <button id="hackmd-open-button">開啟HackMD</button>
             <button id="hackmd-save-button">存入HackMD</button>
+            <button id="preview-toggle-button">預覽 (Ctrl+Enter)</button>
             <a href="description.html" id="description-button">功能說明</a>
             <button id="immersive-toggle-button">沉浸模式</button>
             <button id="theme-toggle-button">切換深色模式</button>
@@ -62,15 +63,8 @@
                 </div>
             </div>
             <div id="ime-container">
-                <div
-                    id="main-editor"
-                    contenteditable="true"
-                    role="textbox"
-                    aria-multiline="true"
-                    aria-label="嘸蝦米編輯區"
-                    placeholder="開始打字..."
-                    data-empty=""
-                ></div>
+                <div id="editor-cm" aria-label="嘸蝦米 Markdown 編輯區"></div>
+                <div id="preview-pane" hidden aria-label="Markdown 預覽"></div>
                 <div id="ime-bar" aria-live="polite">
                     <span id="input-buffer"></span>
                     <span id="candidate-list"></span>

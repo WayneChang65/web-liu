@@ -4,8 +4,9 @@
 //   bound    -> PATCH note content in place (light confirm, D3)
 //   unbound  -> "另存新檔" form: title + token + remember (lean fields only)
 //
-// Content pipeline: editor HTML -> sanitize -> Turndown -> Markdown (same as
-// the old export path, which is not part of the deleted feature).
+// Content pipeline (cm5-refactor): the editor IS markdown source now, so the
+// save path is `deps.getMarkdown()` end to end — no turndown, no sanitize
+// round-trip (the source text is exactly what HackMD stores).
 // Tab bindings live in main.js (Map<tabId, {noteId, title}>); this module
 // asks for the current binding via deps.
 
@@ -19,23 +20,14 @@ import {
 
 /**
  * Wire the save dialog + button. deps:
- *   deps.editorEl                    — contenteditable editor
- *   deps.turndownService             — TurndownService instance (HTML → MD)
- *   deps.sanitizeEditorHtml
+ *   deps.getMarkdown()             — current editor text (markdown source)
  *   deps.showToast(message)
- *   deps.getBinding()                — {noteId, title} | null for current tab
- *   deps.setBinding(binding|null)    — update after 另存新檔 / 開啟
+ *   deps.getBinding()              — {noteId, title} | null for current tab
+ *   deps.setBinding(binding|null)  — update after 另存新檔 / 開啟
  * Returns { open, dialog } for main.js wiring.
  */
 export function initHackmdSave(deps) {
-  const {
-    editorEl,
-    turndownService,
-    sanitizeEditorHtml,
-    showToast,
-    getBinding,
-    setBinding,
-  } = deps;
+  const { getMarkdown, showToast, getBinding, setBinding } = deps;
 
   const button = document.getElementById("hackmd-save-button");
   const dialog = document.getElementById("hackmd-save-modal");
@@ -54,8 +46,7 @@ export function initHackmdSave(deps) {
   const cancelButton = dialog.querySelector("#hackmd-save-cancel");
 
   function editorMarkdown() {
-    const html = sanitizeEditorHtml(editorEl.innerHTML);
-    return turndownService.turndown(html);
+    return getMarkdown();
   }
 
   function open() {

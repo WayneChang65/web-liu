@@ -1,7 +1,5 @@
 // @vitest-environment happy-dom
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import TurndownService from "turndown";
-import { sanitizeEditorHtml } from "./sanitize.js";
 import {
   loadHackmdToken,
   saveHackmdSettings,
@@ -42,22 +40,15 @@ beforeEach(() => {
   localStorage.clear();
 });
 
-function setupSave(binding = null) {
+function setupSave(binding = null, markdown = "測試內容") {
   const parsed = new DOMParser().parseFromString(SAVE_DIALOG_HTML, "text/html");
   document.body.replaceChildren(
     ...Array.from(parsed.body.childNodes, (n) => document.importNode(n, true)),
   );
-  const editor = document.createElement("div");
-  editor.id = "main-editor";
-  editor.innerHTML = "<div>測試內容</div>";
-  document.body.appendChild(editor);
-
   const toasts = [];
   let currentBinding = binding;
   const { dialog } = initHackmdSave({
-    editorEl: editor,
-    turndownService: new TurndownService({ headingStyle: "atx" }),
-    sanitizeEditorHtml,
+    getMarkdown: () => markdown,
     showToast: (m) => toasts.push(m),
     getBinding: () => currentBinding,
     setBinding: (b) => {
@@ -195,8 +186,7 @@ describe("initHackmdSave — new-note mode", () => {
   });
 
   it("refuses to open the dialog when the editor is empty", () => {
-    const t = setupSave(null);
-    document.getElementById("main-editor").innerHTML = "   ";
+    const t = setupSave(null, "   ");
     vi.stubGlobal("fetch", vi.fn());
     t.$("hackmd-save-button").click();
     expect(t.dialog.open).toBe(false);

@@ -1,15 +1,26 @@
+// --- main.js (cm5-refactor) — app wiring around the CM5 editor core ---
+//
+// Architecture after the refactor (D20–D25):
+//   editor.js    CM5 instance + boshiamy interceptor + formatting keymap
+//   preview.js   markdown → sanitized preview HTML (KaTeX via marked ext)
+//   diagram.js   mermaid placeholders → sandboxed iframe SVGs
+//   hackmd*.js   open/save flows (now Markdown-native end to end)
+// This file keeps everything app-level: tabs (one CM Doc per tab), draft
+// storage (v2 = markdown source; v1 = legacy rich HTML, migrated once),
+// theme/immersive/drawer, font size (D24: whole editor), preview toggle,
+// toast, mode indicator/logo.
+
 import "./style.css";
-import { boshiamyData } from "./boshiamy-data.js";
+import "katex/dist/katex.min.css";
+import CodeMirror from "codemirror";
 import TurndownService from "turndown";
-import { lookupCandidates, selectByDigit, resolveSpaceCommit } from "./ime.js";
+import { initEditor } from "./editor.js";
+import { renderPreviewMarkdown, sanitizePreviewHtml } from "./preview.js";
+import { hydrateMermaidBlocks } from "./diagram.js";
 import { initHackmdSave } from "./hackmd.js";
 import { initHackmdBrowser } from "./hackmd-browser.js";
-import { applyEditorContent, sanitizeEditorHtml } from "./sanitize.js";
+import { sanitizeEditorHtml } from "./sanitize.js";
 
-const mainEditor = document.getElementById("main-editor");
-const imeBar = document.getElementById("ime-bar");
-const inputBufferSpan = document.getElementById("input-buffer");
-const candidateListSpan = document.getElementById("candidate-list");
 const modeIndicator = document.getElementById("mode-indicator");
 const copyButton = document.getElementById("copy-button");
 const themeToggleButton = document.getElementById("theme-toggle-button");
@@ -30,6 +41,9 @@ const logoContainer = document.getElementById("logo-container");
 const logoImage = logoContainer.querySelector("img");
 const modeTextEl = document.getElementById("mode-text");
 const fontSizeIndicatorEl = document.getElementById("font-size-indicator");
+const previewPane = document.getElementById("preview-pane");
+const previewToggleButton = document.getElementById("preview-toggle-button");
+const descriptionButton = document.getElementById("description-button");
 const toastEl = document.getElementById("toast");
 
 // --- USER FEEDBACK (TOAST) ---
@@ -42,8 +56,6 @@ function showToast(message) {
   toastTimer = setTimeout(() => toastEl.classList.remove("visible"), 3000);
 }
 
-// H4: localStorage.setItem throws QuotaExceededError on large documents;
-// a failed save must never fail silently.
 function safeSetItem(key, value) {
   try {
     localStorage.setItem(key, value);
@@ -55,391 +67,71 @@ function safeSetItem(key, value) {
   }
 }
 
-// L4: ":empty" stops matching once the editor holds leftover nodes (a lone
-// <br>, or empty <div> wrappers after pressing Enter), so track "visually
-// empty" via a data attribute instead.
-function updatePlaceholderState() {
-  const html = mainEditor.innerHTML;
-  const effectivelyEmpty =
-    html === "" ||
-    /^<br\s*\/?>$/i.test(html) ||
-    /^(\s*<div>\s*<br\s*\/?>\s*<\/div>\s*)+$/i.test(html);
-  // While the IME buffer holds a code, hide the placeholder too — the user is
-  // already typing even though nothing has been committed yet.
-  if (effectivelyEmpty && inputBuffer === "") {
-    mainEditor.setAttribute("data-empty", "");
-  } else {
-    mainEditor.removeAttribute("data-empty");
-  }
+// --- DRAFT STORAGE: v2 = markdown source; v1 (legacy) = contenteditable HTML ---
+function storageKey(id) {
+  return `boshiamy-editor-content-v2-${id}`;
+}
+function legacyStorageKey(id) {
+  return `boshiamy-editor-content-${id}`;
 }
 
-let currentEditorId =
-  parseInt(localStorage.getItem("boshiamy-active-tab")) || 1;
-let editorContents = {
-  1: "",
-  2: "",
-  3: "",
-};
-
-let inputBuffer = "";
-let candidates = [];
-let currentPage = 0;
-const pageSize = 10;
-let imeMode = localStorage.getItem("boshiamy-ime-mode") || "boshiamy";
-let lastActiveImeMode = "boshiamy";
-
-// Initialize lastActiveImeMode.
-// If we loaded in 'disabled' mode, default back to boshiamy for the "active" state,
-// or if we loaded in a normal mode, set that as active.
-if (imeMode === "disabled") {
-  lastActiveImeMode = "boshiamy";
-} else {
-  lastActiveImeMode = imeMode;
-}
-
-let currentFontSize =
-  parseFloat(localStorage.getItem("boshiamy-font-size")) || 1.2;
-let inactivityTimer;
-let zoomInterval = null;
-
-// --- TURNDOWN SERVICE INITIALIZATION ---
+// turndown stays ONLY for migrating legacy HTML drafts (and nothing else —
+// the editor pipeline is markdown-native now). Rules mirror the old export.
 const turndownService = new TurndownService({ headingStyle: "atx" });
-
-// --- TURNDOWN SERVICE CUSTOM RULES ---
-
-// Keep underline tags since Markdown doesn't have a standard equivalent
-turndownService.addRule("underline", {
+turndownService.addRule("keepUnderline", {
   filter: "u",
-  replacement: function (content) {
-    return "<u>" + content + "</u>";
-  },
+  replacement: (content) => "<u>" + content + "</u>",
 });
-
-// Keep spans used for font size
-turndownService.addRule("fontSizeSpan", {
-  filter: function (node) {
-    return node.nodeName === "SPAN" && node.style.fontSize;
-  },
-  replacement: function (content, node) {
-    // Preserve the inline style for font size
-    return (
-      '<span style="' + node.getAttribute("style") + '">' + content + "</span>"
-    );
-  },
+turndownService.addRule("keepFontSizeSpan", {
+  filter: (node) => node.nodeName === "SPAN" && node.style.fontSize,
+  replacement: (content, node) =>
+    '<span style="' + node.getAttribute("style") + '">' + content + "</span>",
 });
-
-// Ensure em/i tags are converted to asterisks for italics
-turndownService.addRule("italic", {
+turndownService.addRule("asteriskItalic", {
   filter: ["em", "i"],
-  replacement: function (content) {
-    return "*" + content + "*";
-  },
+  replacement: (content) => "*" + content + "*",
 });
 
-// --- STYLE TOGGLE LOGIC ---
-function toggleStyle(style) {
-  const selection = window.getSelection();
-  if (!selection.rangeCount) return;
-
-  const range = selection.getRangeAt(0);
-  const selectedText = range.toString();
-
-  if (!selectedText) return; // Don't apply styles to empty selections
-
-  const parentElement =
-    range.commonAncestorContainer.nodeType === 1
-      ? range.commonAncestorContainer
-      : range.commonAncestorContainer.parentElement;
-
-  const tagMap = {
-    bold: "STRONG",
-    italic: "EM",
-    underline: "U",
-  };
-  const tagName = tagMap[style];
-  const isAlreadyStyled = parentElement.closest(tagName);
-
-  if (isAlreadyStyled) {
-    // This is a simplification: it unwraps the entire styled element.
-    // A more robust solution would split the nodes, but this avoids execCommand.
-    const text = document.createTextNode(isAlreadyStyled.textContent);
-    isAlreadyStyled.parentNode.replaceChild(text, isAlreadyStyled);
-    // Restore selection around the new text node
-    range.selectNodeContents(text);
-    selection.removeAllRanges();
-    selection.addRange(range);
-  } else {
-    const newNode = document.createElement(tagName);
-    try {
-      // surroundContents is the ideal way to wrap a selection
-      range.surroundContents(newNode);
-    } catch (e) {
-      // If selection spans across different nodes, surroundContents fails.
-      // As a fallback, we apply the style via a less precise method.
-      console.warn("surroundContents failed, falling back.", e);
-      const fragment = range.extractContents();
-      newNode.appendChild(fragment);
-      range.insertNode(newNode);
-    }
-    // After styling, re-select the content within the new node to ensure the next toggle check works.
-    selection.removeAllRanges();
-    const newRange = document.createRange();
-    newRange.selectNodeContents(newNode);
-    selection.addRange(newRange);
+function migrateLegacyDraft(id) {
+  const legacy = localStorage.getItem(legacyStorageKey(id));
+  if (legacy === null) return null; // nothing to migrate
+  let md = "";
+  try {
+    md = turndownService.turndown(sanitizeEditorHtml(legacy));
+  } catch (err) {
+    console.error("legacy draft migration failed:", err);
   }
+  safeSetItem(storageKey(id), md);
+  localStorage.removeItem(legacyStorageKey(id));
+  return md;
 }
 
-function changeSelectionFontSize(direction) {
-  const selection = window.getSelection();
-  if (!selection.rangeCount || selection.isCollapsed) return;
-
-  const range = selection.getRangeAt(0);
-  const container = range.commonAncestorContainer;
-
-  // Find if the selection is already inside one of our sizing spans
-  const element =
-    container.nodeType === Node.ELEMENT_NODE
-      ? container
-      : container.parentElement;
-  const existingSpan = element.closest('span[data-font-sized="true"]');
-
-  if (existingSpan) {
-    // Case 1: We are inside a span we created. Modify it.
-    const currentFontSize = parseFloat(
-      window.getComputedStyle(existingSpan).fontSize,
-    );
-    const newSize =
-      direction === "increase" ? currentFontSize + 1 : currentFontSize - 1;
-
-    if (newSize > 0) {
-      existingSpan.style.fontSize = `${newSize}px`;
-    }
-    // After modifying, re-select the original range to allow consecutive operations.
-    selection.removeAllRanges();
-    selection.addRange(range);
-  } else {
-    // Case 2: It's plain text or text styled in some other way. Wrap it in a new span.
-    const parentForStyle =
-      container.nodeType === Node.TEXT_NODE
-        ? container.parentElement
-        : container;
-    const computedStyle = window.getComputedStyle(parentForStyle);
-    const currentFontSize = parseFloat(computedStyle.fontSize);
-    const newSize =
-      direction === "increase" ? currentFontSize + 1 : currentFontSize - 1;
-
-    if (newSize > 0) {
-      const newSpan = document.createElement("span");
-      newSpan.dataset.fontSized = "true"; // Add the marker attribute
-      newSpan.style.fontSize = `${newSize}px`;
-      try {
-        const fragment = range.extractContents();
-        newSpan.appendChild(fragment);
-        range.insertNode(newSpan);
-
-        // Reselect the modified text
-        selection.removeAllRanges();
-        const newRange = document.createRange();
-        newRange.selectNodeContents(newSpan);
-        selection.addRange(newRange);
-      } catch (e) {
-        console.error("Could not apply font size change:", e);
-      }
-    }
-  }
+function loadTabDraft(id) {
+  const stored = localStorage.getItem(storageKey(id));
+  if (stored !== null) return stored;
+  const migrated = migrateLegacyDraft(id);
+  return migrated === null ? "" : migrated;
 }
 
-// --- THEME LOGIC ---
-function applyTheme(theme) {
-  if (theme === "dark") {
-    document.body.classList.add("dark-mode");
-    themeToggleButton.textContent = "淺色模式";
+// --- IME MODE (app-level state; the engine itself lives in editor.js) ---
+let imeMode = localStorage.getItem("boshiamy-ime-mode") || "boshiamy";
+let lastActiveImeMode = imeMode === "disabled" ? "boshiamy" : imeMode;
+
+function updateModeIndicator() {
+  let modeText, modeClass;
+  if (imeMode === "boshiamy") {
+    modeText = "嘸蝦米模式";
+    modeClass = "boshiamy";
+  } else if (imeMode === "english") {
+    modeText = "英數模式";
+    modeClass = "english";
   } else {
-    document.body.classList.remove("dark-mode");
-    themeToggleButton.textContent = "深色模式";
+    modeText = "無效模式";
+    modeClass = "disabled";
   }
-}
-
-themeToggleButton.addEventListener("click", () => {
-  const isDarkMode = document.body.classList.toggle("dark-mode");
-  const newTheme = isDarkMode ? "dark" : "light";
-  safeSetItem("theme", newTheme);
-  applyTheme(newTheme);
-  topButtonContainer.classList.remove("expanded"); // Close menu after action
-});
-
-// Apply saved theme on load
-const savedTheme = localStorage.getItem("theme") || "light";
-applyTheme(savedTheme);
-// --- END THEME LOGIC ---
-
-// --- IMMERSIVE MODE LOGIC ---
-const collapseImmersiveButtons = () => {
-  if (document.body.classList.contains("immersive-mode")) {
-    buttonContainer.classList.remove("expanded");
-  }
-};
-
-const resetInactivityTimer = () => {
-  clearTimeout(inactivityTimer);
-  if (document.body.classList.contains("immersive-mode")) {
-    inactivityTimer = setTimeout(collapseImmersiveButtons, 3000);
-  }
-};
-
-const activityListeners = ["mousemove", "keydown", "scroll"];
-
-const addActivityListeners = () => {
-  activityListeners.forEach((event) => {
-    window.addEventListener(event, resetInactivityTimer);
-  });
-};
-
-const removeActivityListeners = () => {
-  activityListeners.forEach((event) => {
-    window.removeEventListener(event, resetInactivityTimer);
-  });
-};
-
-immersiveToggleButton.addEventListener("click", () => {
-  const isImmersive = document.body.classList.toggle("immersive-mode");
-  if (isImmersive) {
-    immersiveToggleButton.textContent = "離開沉浸模式";
-    addActivityListeners();
-    resetInactivityTimer();
-  } else {
-    immersiveToggleButton.textContent = "沉浸模式";
-    buttonContainer.classList.remove("expanded");
-    clearTimeout(inactivityTimer);
-    removeActivityListeners();
-  }
-  topButtonContainer.classList.remove("expanded"); // Close menu after action
-});
-
-buttonToggle.addEventListener("click", () => {
-  buttonContainer.classList.toggle("expanded");
-  // If user manually expands, clear the timer. It will restart on next activity.
-  if (buttonContainer.classList.contains("expanded")) {
-    clearTimeout(inactivityTimer);
-  } else {
-    resetInactivityTimer();
-  }
-});
-
-// --- TOP BUTTON DRAWER LOGIC (for mobile) ---
-topButtonToggle.addEventListener("click", () => {
-  topButtonContainer.classList.toggle("expanded");
-});
-
-document.addEventListener("click", (event) => {
-  if (
-    topButtonContainer.classList.contains("expanded") &&
-    !topButtonContainer.contains(event.target)
-  ) {
-    topButtonContainer.classList.remove("expanded");
-  }
-});
-
-// --- FONT SIZE LOGIC ---
-const MIN_FONT_SIZE = 0.5;
-// L3: cap the zoom so the editor can't grow without bound.
-const MAX_FONT_SIZE = 3;
-
-function updateFontSize() {
-  mainEditor.style.fontSize = `${currentFontSize}rem`;
-  safeSetItem("boshiamy-font-size", currentFontSize);
-  updateModeIndicator();
-}
-
-const zoomIn = () => {
-  if (currentFontSize >= MAX_FONT_SIZE) return;
-  currentFontSize = Math.round((currentFontSize + 0.1) * 10) / 10;
-  updateFontSize();
-};
-
-const zoomOut = () => {
-  if (currentFontSize > MIN_FONT_SIZE) {
-    currentFontSize = Math.round((currentFontSize - 0.1) * 10) / 10;
-    updateFontSize();
-  }
-};
-
-const stopZoom = () => {
-  if (zoomInterval) {
-    clearInterval(zoomInterval);
-    zoomInterval = null;
-  }
-};
-
-zoomInButton.addEventListener("mousedown", () => {
-  zoomIn(); // Zoom once immediately
-  zoomInterval = setInterval(zoomIn, 100); // Then zoom continuously
-});
-
-zoomOutButton.addEventListener("mousedown", () => {
-  zoomOut(); // Zoom once immediately
-  zoomInterval = setInterval(zoomOut, 100); // Then zoom continuously
-});
-
-zoomInButton.addEventListener("mouseup", stopZoom);
-zoomInButton.addEventListener("mouseleave", stopZoom);
-zoomOutButton.addEventListener("mouseup", stopZoom);
-zoomOutButton.addEventListener("mouseleave", stopZoom);
-
-// Add touch events for mobile devices
-zoomInButton.addEventListener("touchstart", (e) => {
-  e.preventDefault();
-  zoomIn();
-  zoomInterval = setInterval(zoomIn, 100);
-});
-zoomOutButton.addEventListener("touchstart", (e) => {
-  e.preventDefault();
-  zoomOut();
-  zoomInterval = setInterval(zoomOut, 100);
-});
-
-zoomInButton.addEventListener("touchend", stopZoom);
-zoomInButton.addEventListener("touchcancel", stopZoom);
-zoomOutButton.addEventListener("touchend", stopZoom);
-zoomOutButton.addEventListener("touchcancel", stopZoom);
-
-// --- IME MODE LOGIC ---
-function toggleImeMode() {
-  // Ctrl-P logic: Only cycle between Boshiamy and English
-  if (imeMode === "disabled") {
-    // If currently disabled, we just toggle the "background" state
-    lastActiveImeMode =
-      lastActiveImeMode === "boshiamy" ? "english" : "boshiamy";
-    // We do NOT update imeMode here, preserving the "Disabled" state until logo is clicked.
-    // Optional: You could choose to have Ctrl-P 'wake up' the editor, but strict interpretation
-    // of "remove disabled from Ctrl-P" implies separating the concerns.
-  } else {
-    imeMode = imeMode === "boshiamy" ? "english" : "boshiamy";
-    lastActiveImeMode = imeMode;
-  }
-
-  // If not disabled, we save the mode. If disabled, we keep 'disabled' in storage.
-  if (imeMode !== "disabled") {
-    safeSetItem("boshiamy-ime-mode", imeMode);
-  }
-
-  clearImeState();
-  updateModeIndicator();
-}
-
-function toggleDisabledMode() {
-  if (imeMode === "disabled") {
-    // Restore previous mode
-    imeMode = lastActiveImeMode;
-  } else {
-    // Go to disabled mode
-    lastActiveImeMode = imeMode;
-    imeMode = "disabled";
-  }
-  safeSetItem("boshiamy-ime-mode", imeMode);
-  clearImeState();
-  updateModeIndicator();
-  updateLogoState();
+  modeTextEl.textContent = modeText;
+  modeTextEl.className = `mode-text ${modeClass}`;
+  fontSizeIndicatorEl.textContent = `, 字型大小：${Math.round(currentFontSize * 10)}`;
 }
 
 function updateLogoState() {
@@ -452,8 +144,34 @@ function updateLogoState() {
   }
 }
 
+function toggleImeMode() {
+  if (imeMode === "disabled") {
+    // Ctrl-P while disabled swaps the "background" mode (old semantics).
+    lastActiveImeMode =
+      lastActiveImeMode === "boshiamy" ? "english" : "boshiamy";
+  } else {
+    imeMode = imeMode === "boshiamy" ? "english" : "boshiamy";
+    lastActiveImeMode = imeMode;
+    safeSetItem("boshiamy-ime-mode", imeMode);
+  }
+  editor.clearIme();
+  updateModeIndicator();
+}
+
+function toggleDisabledMode() {
+  if (imeMode === "disabled") {
+    imeMode = lastActiveImeMode;
+  } else {
+    lastActiveImeMode = imeMode;
+    imeMode = "disabled";
+  }
+  safeSetItem("boshiamy-ime-mode", imeMode);
+  editor.clearIme();
+  updateModeIndicator();
+  updateLogoState();
+}
+
 modeIndicator.addEventListener("click", toggleImeMode);
-// L7: make the mode indicator keyboard-operable (role="button" in HTML).
 modeIndicator.addEventListener("keydown", (e) => {
   if (e.key === "Enter" || e.key === " ") {
     e.preventDefault();
@@ -462,660 +180,232 @@ modeIndicator.addEventListener("keydown", (e) => {
 });
 logoContainer.addEventListener("click", toggleDisabledMode);
 
-mainEditor.addEventListener("keydown", handleKeyDown);
-
-function updateModeIndicator() {
-  let modeText;
-  let modeClass;
-
-  if (imeMode === "boshiamy") {
-    modeText = "嘸蝦米模式";
-    modeClass = "boshiamy";
-  } else if (imeMode === "english") {
-    modeText = "英數模式";
-    modeClass = "english";
+// --- THEME ---
+function applyTheme(theme) {
+  if (theme === "dark") {
+    document.body.classList.add("dark-mode");
+    themeToggleButton.textContent = "淺色模式";
   } else {
-    modeText = "無效模式";
-    modeClass = "disabled";
+    document.body.classList.remove("dark-mode");
+    themeToggleButton.textContent = "深色模式";
   }
+}
+applyTheme(localStorage.getItem("theme") || "light");
 
-  const fontSizeDisplay = Math.round(currentFontSize * 10);
-  // L10: update text/classes directly instead of rebuilding innerHTML.
-  modeTextEl.textContent = modeText;
-  modeTextEl.className = `mode-text ${modeClass}`;
-  fontSizeIndicatorEl.textContent = `, 字型大小：${fontSizeDisplay}`;
+themeToggleButton.addEventListener("click", () => {
+  const isDarkMode = document.body.classList.toggle("dark-mode");
+  const newTheme = isDarkMode ? "dark" : "light";
+  safeSetItem("theme", newTheme);
+  applyTheme(newTheme);
+  topButtonContainer.classList.remove("expanded");
+  if (previewActive) refreshPreview(); // diagrams/theme react to mode flip
+});
+
+// --- IMMERSIVE MODE (unchanged behavior) ---
+let inactivityTimer;
+const collapseImmersiveButtons = () => {
+  if (document.body.classList.contains("immersive-mode")) {
+    buttonContainer.classList.remove("expanded");
+  }
+};
+const resetInactivityTimer = () => {
+  clearTimeout(inactivityTimer);
+  if (document.body.classList.contains("immersive-mode")) {
+    inactivityTimer = setTimeout(collapseImmersiveButtons, 3000);
+  }
+};
+const activityEvents = ["mousemove", "keydown", "scroll"];
+immersiveToggleButton.addEventListener("click", () => {
+  const isImmersive = document.body.classList.toggle("immersive-mode");
+  if (isImmersive) {
+    immersiveToggleButton.textContent = "離開沉浸模式";
+    activityEvents.forEach((ev) =>
+      window.addEventListener(ev, resetInactivityTimer),
+    );
+    resetInactivityTimer();
+  } else {
+    immersiveToggleButton.textContent = "沉浸模式";
+    buttonContainer.classList.remove("expanded");
+    clearTimeout(inactivityTimer);
+    activityEvents.forEach((ev) =>
+      window.removeEventListener(ev, resetInactivityTimer),
+    );
+  }
+  topButtonContainer.classList.remove("expanded");
+});
+
+buttonToggle.addEventListener("click", () => {
+  buttonContainer.classList.toggle("expanded");
+  if (buttonContainer.classList.contains("expanded")) {
+    clearTimeout(inactivityTimer);
+  } else {
+    resetInactivityTimer();
+  }
+});
+
+// --- TOP DRAWER (mobile) ---
+topButtonToggle.addEventListener("click", () => {
+  topButtonContainer.classList.toggle("expanded");
+});
+document.addEventListener("click", (event) => {
+  if (
+    topButtonContainer.classList.contains("expanded") &&
+    !topButtonContainer.contains(event.target)
+  ) {
+    topButtonContainer.classList.remove("expanded");
+  }
+});
+
+// --- FONT SIZE (D24: whole-editor zoom; UI preference, not document) ---
+const MIN_FONT_SIZE = 0.5;
+const MAX_FONT_SIZE = 3;
+let currentFontSize =
+  parseFloat(localStorage.getItem("boshiamy-font-size")) || 1.2;
+let zoomInterval = null;
+
+function updateFontSize() {
+  editor.setFontSize(currentFontSize);
+  safeSetItem("boshiamy-font-size", currentFontSize);
+  updateModeIndicator();
+}
+const zoomIn = () => {
+  if (currentFontSize >= MAX_FONT_SIZE) return;
+  currentFontSize = Math.round((currentFontSize + 0.1) * 10) / 10;
+  updateFontSize();
+};
+const zoomOut = () => {
+  if (currentFontSize > MIN_FONT_SIZE) {
+    currentFontSize = Math.round((currentFontSize - 0.1) * 10) / 10;
+    updateFontSize();
+  }
+};
+const stopZoom = () => {
+  if (zoomInterval) {
+    clearInterval(zoomInterval);
+    zoomInterval = null;
+  }
+};
+const holdRepeat = (btn, fn) => {
+  btn.addEventListener("mousedown", () => {
+    fn();
+    zoomInterval = setInterval(fn, 100);
+  });
+  btn.addEventListener("mouseup", stopZoom);
+  btn.addEventListener("mouseleave", stopZoom);
+  btn.addEventListener("touchstart", (e) => {
+    e.preventDefault();
+    fn();
+    zoomInterval = setInterval(fn, 100);
+  });
+  btn.addEventListener("touchend", stopZoom);
+  btn.addEventListener("touchcancel", stopZoom);
+};
+holdRepeat(zoomInButton, zoomIn);
+holdRepeat(zoomOutButton, zoomOut);
+
+// --- PREVIEW MODE (D22: whole-page toggle, live refresh while open) ---
+let previewActive = false;
+let previewTimer = null;
+
+async function refreshPreview() {
+  const md = editor.getValue();
+  const html = sanitizePreviewHtml(renderPreviewMarkdown(md));
+  // inert parse → import (never innerHTML-from-untrusted-string)
+  const doc = new DOMParser().parseFromString(html, "text/html");
+  while (previewPane.firstChild) previewPane.removeChild(previewPane.firstChild);
+  for (const node of Array.from(doc.body.childNodes)) {
+    previewPane.appendChild(
+      previewPane.ownerDocument.importNode(node, true),
+    );
+  }
+  hydrateMermaidBlocks(previewPane).catch((err) =>
+    console.error("mermaid hydrate failed:", err),
+  );
 }
 
-function handleKeyDown(e) {
-  const key = e.key;
-
-  if (e.ctrlKey || e.metaKey) {
-    // Formatting shortcuts
-    if (["b", "i", "u"].includes(key.toLowerCase())) {
-      e.preventDefault();
-      const style = { b: "bold", i: "italic", u: "underline" }[
-        key.toLowerCase()
-      ];
-      toggleStyle(style);
-      return;
-    }
-    // IME mode toggle
-    if (key.toLowerCase() === "p") {
-      e.preventDefault();
-      toggleImeMode();
-      return;
-    }
-
-    // Font size shortcuts
-    if (key === "[" || (e.shiftKey && key === "<") || key === "9") {
-      // Ctrl+[ or Ctrl+Shift+< or Ctrl+9
-      e.preventDefault();
-      changeSelectionFontSize("decrease");
-      return;
-    }
-    if (key === "]" || (e.shiftKey && key === ">") || key === "0") {
-      // Ctrl+] or Ctrl+Shift+> or Ctrl+0
-      e.preventDefault();
-      changeSelectionFontSize("increase");
-      return;
-    }
-
-    // Allow other Ctrl/Meta shortcuts like Ctrl+A, Ctrl+C, etc.
-    return;
+function setPreview(active) {
+  previewActive = active;
+  editor.clearIme();
+  if (active) {
+    refreshPreview();
+    previewPane.hidden = false;
+    editor.getWrapper().style.display = "none";
+    previewToggleButton.textContent = "編輯 (Ctrl+Enter)";
+  } else {
+    previewPane.hidden = true;
+    editor.getWrapper().style.display = "";
+    editor.focus();
+    previewToggleButton.textContent = "預覽 (Ctrl+Enter)";
   }
+}
 
-  if (imeMode === "boshiamy") {
-    const validChars = /^[a-z,.'[\]vrsf]$/;
+function togglePreview() {
+  setPreview(!previewActive);
+}
 
-    if (validChars.test(key.toLowerCase())) {
+function schedulePreviewRefresh() {
+  if (!previewActive) return;
+  clearTimeout(previewTimer);
+  previewTimer = setTimeout(refreshPreview, 300);
+}
+
+previewToggleButton.addEventListener("click", () => {
+  togglePreview();
+  topButtonContainer.classList.remove("expanded");
+});
+
+// Document-level keys, handled at CAPTURE phase before CodeMirror sees them:
+//  - Ctrl+Enter to LEAVE preview (in preview, CM is hidden; entering preview
+//    goes through the CM keymap instead — see editor.js deps.enterPreview).
+//  - D24 zoom keys: Ctrl+[ / Ctrl+] (±0.1), Ctrl+9 (90%), Ctrl+0 (100%).
+//    Capture + preventDefault also neutralises CM's built-in Ctrl-[/] indent
+//    bindings so the muscle memory stays 1:1 with the old build.
+document.addEventListener(
+  "keydown",
+  (e) => {
+    if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
+    // typing inside real form controls (token fields, search, ...) is sacred;
+    // CM's own editing surface is allowed through (it is not a form control)
+    const t = e.target;
+    const inCM = t && editor && editor.getWrapper().contains(t);
+    if (
+      !inCM &&
+      t &&
+      (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT")
+    ) {
+      return;
+    }
+    if (previewActive && (e.key === "Enter" || e.key === "NumpadEnter")) {
       e.preventDefault();
-      inputBuffer += key.toLowerCase();
-      // H1: Object.hasOwn lookup — typing "constructor" must not crash.
-      candidates = lookupCandidates(boshiamyData, inputBuffer);
-      currentPage = 0;
-      updateImeDisplay();
-    } else if (key >= "0" && key <= "9" && candidates.length > 0) {
-      e.preventDefault();
-      const char = selectByDigit(
-        candidates,
-        currentPage,
-        pageSize,
-        parseInt(key, 10),
-      );
-      if (char !== null) {
-        commitText(char);
-      }
-    } else if (key === "Backspace") {
-      if (inputBuffer.length > 0) {
-        // If the IME buffer has content, we handle it and prevent default browser action.
+      togglePreview();
+      return;
+    }
+    switch (e.key) {
+      case "[":
         e.preventDefault();
-        inputBuffer = inputBuffer.slice(0, -1);
-        candidates = lookupCandidates(boshiamyData, inputBuffer);
-        currentPage = 0;
-        updateImeDisplay();
-      }
-      // If buffer is empty, do nothing and let the browser handle the default backspace.
-    } else if (key === " " || key === "Spacebar") {
-      // If buffer is empty, do nothing and let the default space character be inserted.
-      if (inputBuffer.length === 0) {
-        return;
-      }
-
-      // If we're here, the buffer is not empty, so we handle IME logic.
-      e.preventDefault();
-
-      // H1/M4: selection rules live in the pure, unit-tested resolveSpaceCommit.
-      const char = resolveSpaceCommit(boshiamyData, inputBuffer);
-      if (char !== null) {
-        commitText(char);
-      } else {
-        clearImeState();
-      }
-    } else if (key === "PageDown") {
-      if (candidates.length > pageSize) {
-        const totalPages = Math.ceil(candidates.length / pageSize);
-        currentPage = (currentPage + 1) % totalPages;
-        updateImeDisplay();
-      }
-    } else if (key === "PageUp") {
-      if (candidates.length > pageSize) {
-        const totalPages = Math.ceil(candidates.length / pageSize);
-        currentPage = (currentPage - 1 + totalPages) % totalPages;
-        updateImeDisplay();
-      }
-    } else if (key === "Enter") {
-      if (inputBuffer.length > 0) {
-        clearImeState();
-      }
-    } else if (key.startsWith("Arrow")) {
-      clearImeState();
+        zoomIn();
+        break;
+      case "]":
+        e.preventDefault();
+        zoomOut();
+        break;
+      case "9":
+        e.preventDefault();
+        currentFontSize = 0.9;
+        updateFontSize();
+        break;
+      case "0":
+        e.preventDefault();
+        currentFontSize = 1;
+        updateFontSize();
+        break;
     }
-  }
-}
-
-function updateImeBarPosition() {
-  const selection = window.getSelection();
-  // Only proceed if there's a selection and it's inside our editor
-  if (!selection.rangeCount || !mainEditor.contains(selection.anchorNode)) {
-    return;
-  }
-
-  const range = selection.getRangeAt(0);
-  const editorRect = mainEditor.getBoundingClientRect();
-
-  let effectiveRect;
-  if (range.collapsed) {
-    // For a collapsed range (a cursor), getBoundingClientRect can be unreliable.
-    // We insert a temporary element to get a stable position.
-    // NOTE: insertNode() expands the live range to wrap the inserted node;
-    // re-adding that expanded range leaves a non-collapsed selection in
-    // Firefox, which swallows the next Backspace. Restore from a pristine
-    // clone instead.
-    const caret = range.cloneRange();
-    const tempSpan = document.createElement("span");
-    // Use a zero-width space to ensure the span has a layout
-    tempSpan.textContent = "\u200B"; // Zero-width space
-    range.insertNode(tempSpan);
-    effectiveRect = tempSpan.getBoundingClientRect();
-    // Clean up the temporary element
-    const parent = tempSpan.parentNode;
-    if (parent) {
-      parent.removeChild(tempSpan);
-      parent.normalize(); // Merges adjacent text nodes
-    }
-    selection.removeAllRanges();
-    selection.addRange(caret);
-  } else {
-    // For a non-collapsed selection, the rect is usually fine.
-    effectiveRect = range.getBoundingClientRect();
-  }
-
-  // If we couldn't get a valid rectangle, we can't position the bar.
-  if (
-    !effectiveRect ||
-    (effectiveRect.width === 0 && effectiveRect.height === 0)
-  ) {
-    return;
-  }
-
-  // Calculate top position relative to the editor's visible area
-  let top = effectiveRect.bottom - editorRect.top + 5; // 5px offset below
-
-  // If the bar would overflow the editor's visible area, place it above the cursor
-  const imeBarHeight = imeBar.offsetHeight || 30; // Approx height as a fallback
-  const lineHeight = effectiveRect.height || 20; // Approximate line height
-
-  // Condition to flip:
-  // 1. Bar would overflow the visible editor area if placed below
-  // 2. AND the cursor is on the last visible line (i.e., very close to the bottom of the visible editor)
-  // 3. AND there's enough space above the cursor to place the bar
-  const isCursorOnLastTwoVisibleLines =
-    editorRect.bottom - effectiveRect.bottom < 1.5 * lineHeight;
-
-  const shouldFlip =
-    top + imeBarHeight > mainEditor.clientHeight &&
-    isCursorOnLastTwoVisibleLines &&
-    effectiveRect.top - editorRect.top > imeBarHeight + 5; // 5px padding
-
-  if (shouldFlip) {
-    top = effectiveRect.top - editorRect.top - imeBarHeight - 5;
-  }
-
-  imeBar.style.top = `${Math.max(0, top)}px`;
-
-  // Determine horizontal position based on cursor's screen position
-  const viewMidpoint = window.innerWidth / 2;
-  imeBar.style.left = "auto";
-  imeBar.style.right = "auto";
-
-  if (effectiveRect.left < viewMidpoint) {
-    // Cursor on left half of screen -> bar appears to the right of cursor
-    imeBar.style.left = `${effectiveRect.left - editorRect.left}px`;
-  } else {
-    // Cursor on right half of screen -> bar appears to the left of cursor
-    // (align bar's right edge with cursor's right edge)
-    imeBar.style.right = `${editorRect.right - effectiveRect.right}px`;
-  }
-
-  // A frame delay allows the browser to render the bar so we can get its actual dimensions
-  // for a final boundary check to prevent it from overflowing the editor horizontally.
-  requestAnimationFrame(() => {
-    const imeBarRect = imeBar.getBoundingClientRect();
-    if (imeBarRect.right > editorRect.right - 5) {
-      // 5px padding
-      imeBar.style.left = "auto";
-      imeBar.style.right = "5px";
-    }
-    if (imeBarRect.left < editorRect.left + 5) {
-      imeBar.style.right = "auto";
-      imeBar.style.left = "5px";
-    }
-  });
-}
-
-function ensureCursorIsVisible() {
-  const selection = window.getSelection();
-  if (!selection.rangeCount) return;
-
-  const range = selection.getRangeAt(0);
-  const editorRect = mainEditor.getBoundingClientRect();
-
-  let effectiveRect;
-  if (range.collapsed) {
-    // insertNode() mutates the live range (see updateImeBarPosition) —
-    // restore from a pristine clone so Firefox doesn't keep a
-    // non-collapsed selection that eats the next Backspace.
-    const caret = range.cloneRange();
-    const tempSpan = document.createElement("span");
-    tempSpan.textContent = "\u200B"; // Zero-width space
-    range.insertNode(tempSpan);
-    effectiveRect = tempSpan.getBoundingClientRect();
-    const parent = tempSpan.parentNode;
-    if (parent) {
-      parent.removeChild(tempSpan);
-      parent.normalize();
-    }
-    selection.removeAllRanges();
-    selection.addRange(caret);
-  } else {
-    effectiveRect = range.getBoundingClientRect();
-  }
-
-  if (
-    !effectiveRect ||
-    (effectiveRect.width === 0 && effectiveRect.height === 0)
-  ) {
-    return;
-  }
-
-  // Check if cursor is above the visible area
-  if (effectiveRect.top < editorRect.top) {
-    mainEditor.scrollTop += effectiveRect.top - editorRect.top;
-  }
-  // Check if cursor is below the visible area
-  else if (effectiveRect.bottom > editorRect.bottom) {
-    mainEditor.scrollTop += effectiveRect.bottom - editorRect.bottom;
-  }
-}
-
-function updateImeDisplay() {
-  updatePlaceholderState();
-  if (inputBuffer.length === 0) {
-    imeBar.style.display = "none";
-    return;
-  }
-
-  inputBufferSpan.textContent = inputBuffer;
-
-  if (candidates.length > 0) {
-    const pageStart = currentPage * pageSize;
-    const pageEnd = pageStart + pageSize;
-    const pageCandidates = candidates.slice(pageStart, pageEnd);
-
-    let candidateString = "";
-    pageCandidates.forEach((char, index) => {
-      candidateString += `${index}. ${char} `;
-    });
-
-    if (candidates.length > pageSize) {
-      const totalPages = Math.ceil(candidates.length / pageSize);
-      candidateString += `(${currentPage + 1}/${totalPages})`;
-    }
-
-    candidateListSpan.textContent = candidateString.trim();
-    imeBar.style.display = "flex";
-  } else {
-    candidates = [];
-    candidateListSpan.textContent = "（無對應字）";
-    imeBar.style.display = "flex";
-  }
-  updateImeBarPosition();
-}
-
-function commitText(char) {
-  const selection = window.getSelection();
-  if (!selection.rangeCount) return;
-
-  const range = selection.getRangeAt(0);
-  range.deleteContents(); // Delete selected text if any
-
-  const textNode = document.createTextNode(char);
-  range.insertNode(textNode);
-
-  // Move cursor after the inserted text
-  range.setStartAfter(textNode);
-  range.collapse(true);
-  selection.removeAllRanges();
-  selection.addRange(range);
-
-  clearImeState();
-  mainEditor.focus();
-  ensureCursorIsVisible();
-  // Programmatic insertion doesn't fire the "input" event, so refresh the
-  // placeholder state manually (bug: committed first char stayed behind the
-  // "開始打字..." placeholder).
-  updatePlaceholderState();
-}
-
-function clearImeState() {
-  inputBuffer = "";
-  candidates = [];
-  currentPage = 0;
-  imeBar.style.display = "none";
-  updatePlaceholderState();
-}
-
-// --- EDITOR TAB LOGIC ---
-editorTabs.addEventListener("click", (e) => {
-  const target = e.target.closest(".tab-button");
-  if (!target) return;
-
-  const newEditorId = parseInt(target.dataset.editor, 10);
-  if (newEditorId === currentEditorId) return;
-
-  // 1. Save current editor's content to memory (sanitized, like the restore path)
-  editorContents[currentEditorId] = sanitizeEditorHtml(mainEditor.innerHTML);
-
-  // 2. Update active button in UI
-  const currentActive = editorTabs.querySelector(".active");
-  if (currentActive) {
-    currentActive.classList.remove("active");
-  }
-  target.classList.add("active");
-
-  // 3. Switch to the new editor
-  currentEditorId = newEditorId;
-  safeSetItem("boshiamy-active-tab", currentEditorId);
-
-  // 4. Load new editor's content from memory (H3: re-sanitize as defense-in-depth)
-  applyEditorContent(mainEditor, editorContents[currentEditorId] || "");
-
-  // 5. Update UI states for the new editor
-  updateRestoreButtonState();
-  updatePlaceholderState();
-  updateHackmdTabBadges();
-  mainEditor.focus();
-});
-
-// Function to restore content from localStorage
-function autoRestore(editorId) {
-  const savedContent = localStorage.getItem(getStorageKey(editorId));
-  if (savedContent) {
-    // H3: stored content is untrusted — allowlist before it reaches the DOM.
-    const clean = sanitizeEditorHtml(savedContent);
-    applyEditorContent(mainEditor, clean);
-    editorContents[editorId] = clean; // Prime the in-memory cache
-    updatePlaceholderState();
-  }
-}
-
-// Initial setup
-// Update active tab button if needed
-if (currentEditorId !== 1) {
-  const defaultActive = editorTabs.querySelector(".active");
-  if (defaultActive) defaultActive.classList.remove("active");
-  const newActive = editorTabs.querySelector(
-    `.tab-button[data-editor="${currentEditorId}"]`,
-  );
-  if (newActive) newActive.classList.add("active");
-}
-
-mainEditor.focus();
-updateModeIndicator();
-updateLogoState();
-updateFontSize(); // Set initial font size
-updatePlaceholderState();
-
-// Check if returning from description page
-const urlParams = new URLSearchParams(window.location.search);
-if (urlParams.get("action") === "restore") {
-  autoRestore(currentEditorId);
-  // Clean the URL so a refresh doesn't re-trigger the restore
-  history.replaceState(null, "", window.location.pathname);
-}
-
-// Defer the initial button state update to allow the DOM to process any restores
-setTimeout(() => {
-  updateRestoreButtonState();
-}, 0);
-
-mainEditor.addEventListener("blur", () => {
-  clearImeState();
-});
-
-copyButton.addEventListener("click", () => {
-  // Use innerText for contenteditable div to get plain text
-
-  const textToCopy = mainEditor.innerText;
-
-  if (textToCopy) {
-    navigator.clipboard
-      .writeText(textToCopy)
-      .then(() => {
-        const originalText = copyButton.textContent;
-
-        copyButton.textContent = "已複製！";
-
-        setTimeout(() => {
-          copyButton.textContent = originalText;
-        }, 2000);
-      })
-      .catch((err) => {
-        console.error("無法複製文字: ", err);
-      });
-  }
-});
-
-// --- PASTE HANDLING ---
-
-// Intercept paste events to sanitize content to plain text
-
-mainEditor.addEventListener("paste", (e) => {
-  // Prevent the default paste action which might insert rich text
-
-  e.preventDefault();
-
-  // Get the plain text from the clipboard
-
-  const text = (e.clipboardData || window.clipboardData).getData("text/plain");
-
-  // Insert the sanitized plain text into the editor
-  const selection = window.getSelection();
-  if (!selection.rangeCount) return;
-  const range = selection.getRangeAt(0);
-  range.deleteContents();
-  const textNode = document.createTextNode(text);
-  range.insertNode(textNode);
-
-  // Move cursor to the end of pasted text
-  range.setStartAfter(textNode);
-  range.collapse(true);
-  selection.removeAllRanges();
-  selection.addRange(range);
-
-  // M3: drop any half-typed boshiamy code so the next keystroke doesn't
-  // continue a stale buffer.
-  clearImeState();
-
-  // After pasting, use a hybrid approach to ensure the caret is visible.
-
-  requestAnimationFrame(() => {
-    const selection = window.getSelection();
-
-    if (!selection.rangeCount) return;
-
-    const range = selection.getRangeAt(0);
-    const caret = range.cloneRange(); // insertNode() mutates the live range
-
-    // 1. Insert a temporary element to get a reliable position.
-
-    const tempSpan = document.createElement("span");
-
-    range.insertNode(tempSpan);
-
-    const spanRect = tempSpan.getBoundingClientRect();
-
-    tempSpan.parentNode.removeChild(tempSpan); // Clean up immediately
-
-    // Restore the pristine (collapsed) caret; the expanded live range would
-    // otherwise leave a non-collapsed selection that eats the next Backspace.
-    selection.removeAllRanges();
-    selection.addRange(caret);
-
-    // 2. Perform the precise calculation using the reliable coordinates.
-
-    const editorRect = mainEditor.getBoundingClientRect();
-
-    const editorStyle = window.getComputedStyle(mainEditor);
-
-    const editorPaddingBottom = parseFloat(editorStyle.paddingBottom);
-
-    const visibleEditorBottom = editorRect.bottom - editorPaddingBottom;
-
-    // 3. Scroll by the calculated amount if needed.
-
-    if (spanRect.bottom > visibleEditorBottom) {
-      mainEditor.scrollTop += spanRect.bottom - visibleEditorBottom;
-    }
-
-    // Trigger save after paste
-    // Manual save only - no auto save
-  });
-});
-
-// --- SAVE AS MARKDOWN LOGIC ---
-
-saveMdButton.addEventListener("click", () => {
-  const content = mainEditor.innerHTML;
-
-  if (content) {
-    // Convert the HTML content from the editor to Markdown
-
-    const markdown = turndownService.turndown(content);
-
-    // Create a Blob from the Markdown string
-
-    const blob = new Blob([markdown], { type: "text/markdown;charset=utf-8" });
-
-    // Create a temporary link element to trigger the download
-
-    const link = document.createElement("a");
-
-    link.href = URL.createObjectURL(blob);
-
-    link.download = "document.md";
-
-    // Append to the document, click, and then remove
-
-    document.body.appendChild(link);
-
-    link.click();
-
-    document.body.removeChild(link);
-
-    // Clean up the object URL
-
-    URL.revokeObjectURL(link.href);
-  }
-});
-
-// --- MANUAL SAVE AND RESTORE LOGIC ---
-function getStorageKey(id) {
-  return `boshiamy-editor-content-${id}`;
-}
-
-function updateRestoreButtonState() {
-  // Check if there is saved content in localStorage for the current editor
-  const hasSavedContent = !!localStorage.getItem(
-    getStorageKey(currentEditorId),
-  );
-  // Enable restore button only if there is saved content
-  restoreButton.disabled = !hasSavedContent;
-}
-
-mainEditor.addEventListener("keyup", () => {
-  ensureCursorIsVisible();
-  // We don't update button state on keyup anymore because restore availability
-  // depends on localStorage, which doesn't change on keyup (only on manual save).
-});
-
-mainEditor.addEventListener("input", updatePlaceholderState);
-
-// Manual Save Button
-saveTempButton.addEventListener("click", () => {
-  // H3: store an allowlisted copy so a polluted editor can't persist markup.
-  const content = sanitizeEditorHtml(mainEditor.innerHTML);
-  // H4: quota errors surface as toast + button feedback, not silence.
-  const saved = safeSetItem(getStorageKey(currentEditorId), content);
-  if (saved) {
-    updateRestoreButtonState();
-  }
-
-  // Provide user feedback
-  const originalText = saveTempButton.textContent;
-  saveTempButton.textContent = saved ? "已存入！" : "暫存失敗";
-  setTimeout(() => {
-    saveTempButton.textContent = originalText;
-  }, 2000);
-  topButtonContainer.classList.remove("expanded"); // Close menu after action
-});
-
-// Manual Restore Button
-restoreButton.addEventListener("click", () => {
-  const savedContent = localStorage.getItem(getStorageKey(currentEditorId));
-  if (savedContent) {
-    // H3: stored content is untrusted — allowlist before it reaches the DOM.
-    const clean = sanitizeEditorHtml(savedContent);
-    applyEditorContent(mainEditor, clean);
-    editorContents[currentEditorId] = clean; // Update memory cache
-    updatePlaceholderState();
-
-    // Provide user feedback
-    const originalText = restoreButton.textContent;
-    restoreButton.textContent = "已讀回！";
-    setTimeout(() => {
-      restoreButton.textContent = originalText;
-    }, 2000);
-  }
-  topButtonContainer.classList.remove("expanded"); // Close menu after action
-});
-
-const descriptionButton = document.getElementById("description-button");
-
-// --- DESCRIPTION BUTTON LOGIC ---
-descriptionButton.addEventListener("click", (e) => {
-  e.preventDefault();
-
-  const shouldSave = confirm(
-    "是否暫存目前編輯區的資料，否則等會回來，可能會遺失？\n\n按「確定」存入暫存並前往說明頁。\n按「取消」不暫存直接前往說明頁。",
-  );
-
-  if (shouldSave) {
-    const content = sanitizeEditorHtml(mainEditor.innerHTML);
-    safeSetItem(getStorageKey(currentEditorId), content);
-    updateRestoreButtonState();
-  }
-
-  // Fixed relative target — same-origin by construction, no redirect surface.
-  window.location.assign("description.html");
-});
-
-// --- HACKMD INTEGRATION (開啟 / 存入 / 分頁綁定) ---
-// D4: each editor tab may be bound to one HackMD note. Bindings are kept in
-// memory for the session only — after a reload tabs start unbound again, and
-// the next save becomes a 另存新檔. The note content itself always lives on
-// HackMD, so nothing is lost by not persisting bindings.
+  },
+  true, // capture
+);
+
+// --- HACKMD BINDINGS (in-memory per tab, same as before the refactor) ---
 const hackmdBindings = { 1: null, 2: null, 3: null };
-
-function editorHasUnsavedLookingContent() {
-  // Same "visually empty" notion as updatePlaceholderState (L4).
-  const html = mainEditor.innerHTML;
-  return !(
-    html === "" ||
-    /^<br\s*\/?>$/i.test(html) ||
-    /^(\s*<div>\s*<br\s*\/?>\s*<\/div>\s*)+$/i.test(html)
-  );
-}
 
 function updateHackmdTabBadges() {
   for (const btn of editorTabs.querySelectorAll(".tab-button")) {
@@ -1126,32 +416,145 @@ function updateHackmdTabBadges() {
   }
 }
 
-initHackmdBrowser({
-  sanitizeEditorHtml,
-  showToast,
-  editorHasContent: editorHasUnsavedLookingContent,
-  saveTempBeforeOpen: () => {
-    const content = sanitizeEditorHtml(mainEditor.innerHTML);
-    if (safeSetItem(getStorageKey(currentEditorId), content)) {
-      updateRestoreButtonState();
-    }
-  },
-  onOpenNote: ({ noteId, title, html }) => {
-    applyEditorContent(mainEditor, html);
-    // Cache exactly what we just applied (applyEditorContent re-sanitizes
-    // internally, so re-read the DOM to stay byte-consistent with the view).
-    editorContents[currentEditorId] = sanitizeEditorHtml(mainEditor.innerHTML);
-    hackmdBindings[currentEditorId] = { noteId, title };
-    updateHackmdTabBadges();
-    updatePlaceholderState();
-    mainEditor.focus();
-  },
+// --- EDITOR + THREE-TAB DOC MANAGEMENT ---
+let currentEditorId = parseInt(localStorage.getItem("boshiamy-active-tab")) || 1;
+if (!(currentEditorId >= 1 && currentEditorId <= 3)) currentEditorId = 1;
+
+function makeDoc(content) {
+  return CodeMirror.Doc(content, {
+    name: "markdown",
+    fencedCodeBlocks: true,
+  });
+}
+
+const editor = initEditor({
+  getImeMode: () => imeMode,
+  toggleImeMode,
+  saveHackmd: () => hackmdSaveApi.open(),
+  togglePreview,
+  onDocChange: schedulePreviewRefresh,
 });
 
-initHackmdSave({
-  editorEl: mainEditor,
-  turndownService,
-  sanitizeEditorHtml,
+function updateRestoreButtonState() {
+  const hasSavedContent = !!(
+    localStorage.getItem(storageKey(currentEditorId)) ||
+    localStorage.getItem(legacyStorageKey(currentEditorId))
+  );
+  restoreButton.disabled = !hasSavedContent;
+}
+
+// Doc-per-tab: CM Docs are full documents (cursor/undo included), so tab
+// switching just swaps the Doc — no serialization round-trip.
+const tabDocs = { 1: null, 2: null, 3: null };
+
+function showTab(newId) {
+  if (newId === currentEditorId) return;
+  tabDocs[currentEditorId] = editor.detachDoc();
+  currentEditorId = newId;
+  safeSetItem("boshiamy-active-tab", newId);
+  if (!tabDocs[newId]) tabDocs[newId] = makeDoc(loadTabDraft(newId));
+  editor.swapDoc(tabDocs[newId]);
+  updateRestoreButtonState();
+  updateHackmdTabBadges();
+  if (previewActive) refreshPreview();
+}
+
+editorTabs.addEventListener("click", (e) => {
+  const target = e.target.closest(".tab-button");
+  if (!target) return;
+  const newId = parseInt(target.dataset.editor, 10);
+  if (newId === currentEditorId) return;
+  const currentActive = editorTabs.querySelector(".active");
+  if (currentActive) currentActive.classList.remove("active");
+  target.classList.add("active");
+  showTab(newId);
+  editor.focus();
+});
+
+// --- SAVE TEMP / RESTORE (markdown-native) ---
+saveTempButton.addEventListener("click", () => {
+  const md = editor.getValue();
+  const saved = safeSetItem(storageKey(currentEditorId), md);
+  if (saved) {
+    localStorage.removeItem(legacyStorageKey(currentEditorId));
+    updateRestoreButtonState();
+  }
+  const originalText = saveTempButton.textContent;
+  saveTempButton.textContent = saved ? "已存入！" : "暫存失敗";
+  setTimeout(() => {
+    saveTempButton.textContent = originalText;
+  }, 2000);
+  topButtonContainer.classList.remove("expanded");
+});
+
+restoreButton.addEventListener("click", () => {
+  let md = localStorage.getItem(storageKey(currentEditorId));
+  if (md === null) md = migrateLegacyDraft(currentEditorId);
+  if (md !== null) {
+    editor.setValue(md);
+    const originalText = restoreButton.textContent;
+    restoreButton.textContent = "已讀回！";
+    setTimeout(() => {
+      restoreButton.textContent = originalText;
+    }, 2000);
+    if (previewActive) refreshPreview();
+  }
+  topButtonContainer.classList.remove("expanded");
+});
+
+// --- COPY / EXPORT (source is markdown already) ---
+copyButton.addEventListener("click", () => {
+  const textToCopy = editor.getValue();
+  if (!textToCopy) return;
+  navigator.clipboard
+    .writeText(textToCopy)
+    .then(() => {
+      const originalText = copyButton.textContent;
+      copyButton.textContent = "已複製！";
+      setTimeout(() => {
+        copyButton.textContent = originalText;
+      }, 2000);
+    })
+    .catch((err) => console.error("無法複製文字: ", err));
+});
+
+saveMdButton.addEventListener("click", () => {
+  const md = editor.getValue();
+  if (!md) return;
+  const blob = new Blob([md], { type: "text/markdown;charset=utf-8" });
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = "document.md";
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(link.href);
+});
+
+// --- DESCRIPTION PAGE NAV (temp-save first, same UX as before) ---
+descriptionButton.addEventListener("click", (e) => {
+  e.preventDefault();
+  const shouldSave = confirm(
+    "是否暫存目前編輯區的資料，否則等會回來，可能會遺失？\n\n按「確定」存入暫存並前往說明頁。\n按「取消」不暫存直接前往說明頁。",
+  );
+  if (shouldSave) {
+    safeSetItem(storageKey(currentEditorId), editor.getValue());
+    localStorage.removeItem(legacyStorageKey(currentEditorId));
+    updateRestoreButtonState();
+  }
+  window.location.assign("description.html");
+});
+
+const urlParams = new URLSearchParams(window.location.search);
+if (urlParams.get("action") === "restore") {
+  const md = loadTabDraft(currentEditorId);
+  editor.swapDoc(makeDoc(md));
+  history.replaceState(null, "", window.location.pathname);
+}
+
+// --- HACKMD wiring (Markdown end-to-end now; no turndown/sanitize in the path) ---
+const hackmdSaveApi = initHackmdSave({
+  getMarkdown: () => editor.getValue(),
   showToast,
   getBinding: () => hackmdBindings[currentEditorId],
   setBinding: (binding) => {
@@ -1160,14 +563,37 @@ initHackmdSave({
   },
 });
 
-updateHackmdTabBadges();
-
-// Update IME bar position whenever the cursor/selection moves
-document.addEventListener("selectionchange", () => {
-  if (imeBar.style.display !== "none") {
-    // Defer to the next animation frame. This is crucial to avoid race
-    // conditions where the selection has updated but the browser's scroll
-    // position has not, especially after actions like pressing "Enter".
-    requestAnimationFrame(updateImeBarPosition);
-  }
+initHackmdBrowser({
+  showToast,
+  editorHasContent: () => editor.hasContent(),
+  saveTempBeforeOpen: () => {
+    if (safeSetItem(storageKey(currentEditorId), editor.getValue())) {
+      localStorage.removeItem(legacyStorageKey(currentEditorId));
+      updateRestoreButtonState();
+    }
+  },
+  onOpenNote: ({ noteId, title, markdown }) => {
+    editor.setValue(markdown);
+    hackmdBindings[currentEditorId] = { noteId, title };
+    updateHackmdTabBadges();
+    if (previewActive) refreshPreview();
+    editor.focus();
+  },
 });
+
+// --- INITIAL MOUNT ---
+if (currentEditorId !== 1) {
+  const defaultActive = editorTabs.querySelector(".active");
+  if (defaultActive) defaultActive.classList.remove("active");
+  const newActive = editorTabs.querySelector(
+    `.tab-button[data-editor="${currentEditorId}"]`,
+  );
+  if (newActive) newActive.classList.add("active");
+}
+
+updateModeIndicator();
+updateLogoState();
+updateFontSize();
+updateRestoreButtonState();
+updateHackmdTabBadges();
+editor.focus();
