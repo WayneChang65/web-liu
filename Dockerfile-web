@@ -10,9 +10,13 @@ WORKDIR /app
 # usage: docker-compose build --build-arg CACHEBUST=$(date +%s)
 ARG CACHEBUST=1
 
-# Clone the repository (master branch)
+# Which branch to build (default master). Try a feature branch with:
+#   docker compose build --build-arg GIT_BRANCH=cm5-refactor
+ARG GIT_BRANCH=master
+
+# Clone the repository (branch selectable via GIT_BRANCH)
 # We clone into the current directory (.)
-RUN git clone -b master https://github.com/WayneChang65/web-liu.git .
+RUN git clone -b ${GIT_BRANCH} https://github.com/WayneChang65/web-liu.git .
 
 # M6: install the exact dependency set from the committed lockfile.
 # npm's lockfile records every platform's optional deps, so `npm ci` is
