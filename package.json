@@ -25,7 +25,10 @@
   },
   "homepage": "https://github.com/WayneChang65/web-liu#readme",
   "dependencies": {
+    "codemirror": "^5.65.21",
+    "katex": "^0.18.9",
     "marked": "^18.0.14",
+    "mermaid": "^12.0.0",
     "turndown": "^7.2.2"
   },
   "devDependencies": {
