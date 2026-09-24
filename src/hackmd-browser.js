@@ -15,7 +15,7 @@ import {
   listNotes,
   getNote,
 } from "./hackmd-api.js";
-import { detectUnsupportedSyntax, renderMarkdownToHtml } from "./markdown.js";
+import { detectUnsupportedSyntax } from "./markdown.js";
 
 function formatDate(ms) {
   if (!ms) return "";
@@ -38,7 +38,7 @@ export function filterNotes(notes, query) {
 
 /**
  * Wire the browser dialog. deps:
- *   deps.onOpenNote({ noteId, title, html })  — sanitized HTML ready for the editor
+ *   deps.onOpenNote({ noteId, title, markdown })  — raw note source for the editor
  *   deps.editorHasContent()                   — truthy → confirm overwrite first
  *   deps.showToast(message)
  * Returns { open }.
@@ -147,13 +147,15 @@ export function initHackmdBrowser(deps) {
     }
     const content = (result.data && result.data.content) || "";
 
-    // D7: unsupported syntax blocks by default, force-open knowingly.
+    // cm5-refactor (source mode): hand the RAW markdown over — no HTML
+    // round-trip anymore, so HackMD-specific syntax survives byte-for-byte
+    // through edit+save. The D7 notice stays as an informational heads-up.
     const issues = detectUnsupportedSyntax(content);
     if (issues.length > 0) {
       const proceed = confirm(
-        `《${note.title || "（無標題）"}》含有本站無法安全編輯的語法：\n\n` +
+        `《${note.title || "（無標題）"}》含有 HackMD 特殊語法：\n\n` +
           issues.map((s) => ` ・${s}`).join("\n") +
-          `\n\n在此編輯並存回，可能損毀這些區塊的內容。\n\n按「確定」仍要開啟（後果自負），按「取消」返回清單。`,
+          `\n\n源碼編輯會原封不動保留這些文字，存回也不會改動它們，\n但它們在本站預覽中不會呈現效果。\n\n按「確定」開啟，按「取消」返回清單。`,
       );
       if (!proceed) {
         setStatus("");
@@ -173,8 +175,7 @@ export function initHackmdBrowser(deps) {
       deps.saveTempBeforeOpen();
     }
 
-    const html = deps.sanitizeEditorHtml(renderMarkdownToHtml(content));
-    onOpenNote({ noteId: note.id, title: note.title || "", html });
+    onOpenNote({ noteId: note.id, title: note.title || "", markdown: content });
     dialog.close();
     showToast(`已開啟：${note.title || "（無標題）"}`);
   }
