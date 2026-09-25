@@ -45,6 +45,41 @@ describe("sanitizePreviewHtml", () => {
     expect(html).not.toContain("javascript:");
   });
 
+  it("keeps raw HTML colour markup so HackMD-styled notes render (第2輪#3)", () => {
+    const out = sanitizePreviewHtml(
+      '<p>紅 <font color="#ff0000">紅字</font> 藍 <span style="color:blue">藍字</span> ' +
+        "<mark>標記</mark><s>刪除</s><kbd>K</kbd></p>",
+    );
+    expect(out).toContain('<font color="#ff0000">紅字</font>');
+    expect(out).toContain('style="color:blue"');
+    expect(out).toContain("<mark>標記</mark>");
+    expect(out).toContain("<s>刪除</s>");
+    expect(out).toContain("<kbd>K</kbd>");
+  });
+
+  it("still drops executable/hostile markup and unsafe colour values", () => {
+    const out = sanitizePreviewHtml(
+      '<font color="expression(alert(1))">x</font>' +
+        '<span style="behavior:url(evil)">y</span><script>bad()</script>' +
+        '<img src="x" onerror="bad()">',
+    );
+    // expression(...) has parens → colour attr stripped (font tag kept, text survives)
+    expect(out).not.toContain("expression");
+    expect(out).not.toContain("behavior");
+    expect(out).not.toContain("script");
+    expect(out).not.toContain("onerror");
+    expect(out).toContain("x");
+    expect(out).toContain("y");
+  });
+
+  it("renders markdown-with-embedded-HTML end to end (font survives parse+sanitize)", () => {
+    const html = sanitizePreviewHtml(
+      renderPreviewMarkdown('注意：<font color="#e74c3c">紅色警告</font>與`code`並存'),
+    );
+    expect(html).toContain('<font color="#e74c3c">紅色警告</font>');
+    expect(html).toContain("<code>code</code>");
+  });
+
   it("keeps the mermaid placeholder div + data-mermaid attribute", () => {
     const html = sanitizePreviewHtml(
       '<div class="mermaid-placeholder" data-mermaid="graph TD; A--&gt;B;">x</div>',

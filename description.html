@@ -118,7 +118,9 @@
                 <code># 標題</code>、<code>**粗體**</code>
                 這般的原始語法（附語法高亮）。按 Ctrl + Shift + m
                 進入整頁預覽，表格、程式碼、數學式（KaTeX）、mermaid
-                圖表都會完整渲染；再按一次回編輯。
+                圖表都會完整渲染；再按一次回編輯。編輯器上方的
+                <strong>「編輯／預覽」膠囊</strong>會顯示目前模式，點它也等於
+                Ctrl + Shift + m。
             </p>
             <p>
                 點擊「匯出」下載的就是編輯區裡的 Markdown
@@ -156,6 +158,15 @@
                 <li>
                     <strong>HackMD 特殊語法:</strong>
                     源碼模式下編輯與存回都<strong>不會損毀</strong>任何語法；若筆記含有本站預覽無法呈現的 HackMD 專屬語法（如 container），開啟時會提示知悉。
+                </li>
+                <li>
+                    <strong>HTML 顏色與標籤:</strong>
+                    HackMD 工具列插入的顏色（<code>&lt;font color&gt;</code>）、
+                    <code>&lt;span style="color:…"&gt;</code>、<code>&lt;mark&gt;</code>、
+                    <code>&lt;kbd&gt;</code>
+                    等安全 HTML 標籤，本站預覽<strong>會照樣渲染</strong>；源碼原封不動存回
+                    HackMD。含 <code>&lt;img&gt;</code>、<code>&lt;iframe&gt;</code>
+                    等不支援標籤的筆記，開檔時仍會提示。
                 </li>
                 <li>
                     <strong>分頁綁定:</strong>

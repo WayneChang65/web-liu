@@ -62,8 +62,8 @@ h1 {
 }
 
 #editor-cm .CodeMirror-focused {
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 1px #3b82f6;
+  border-color: #0d9488;
+  box-shadow: 0 0 0 1px #0d9488;
 }
 
 #editor-cm .CodeMirror-lines {
@@ -104,7 +104,7 @@ h1 {
 }
 
 #input-buffer {
-  color: #0056b3;
+  color: #0f766e;
   font-weight: 500;
   margin-right: 10px;
 }
@@ -124,6 +124,44 @@ h1 {
   font-weight: 500;
   color: #d9534f; /* A distinct color */
   cursor: pointer;
+}
+
+/* 編輯／預覽狀態膠囊（主人 2026-09-25 第2輪#2）：跟 mode-text 同尺寸語言，
+   青綠=預覽（全站強調色），中性灰=編輯；可點擊，等同 Ctrl+Shift+M */
+.view-pill {
+  margin-left: 14px;
+  padding: 3px 12px;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 1px;
+  cursor: pointer;
+  user-select: none;
+  border: 1px solid #d1d5db;
+  background-color: #f3f4f6;
+  color: #4b5563;
+  transition:
+    background-color 0.25s,
+    color 0.25s,
+    border-color 0.25s;
+}
+
+body:not(.dark-mode) .view-pill.preview {
+  background-color: #0d9488;
+  border-color: #0d9488;
+  color: #ffffff;
+}
+
+body.dark-mode .view-pill {
+  background-color: transparent;
+  border-color: #334155;
+  color: #94a3b8;
+}
+
+body.dark-mode .view-pill.preview {
+  background-color: #22d3ee;
+  border-color: #22d3ee;
+  color: #000000;
 }
 
 #editor-tabs {
@@ -149,19 +187,19 @@ h1 {
 
 .tab-button:hover {
   transform: translateY(-1px);
-  color: #3b82f6;
-  border-color: #3b82f6;
+  color: #0f766e;
+  border-color: #5eead4;
 }
 
 .tab-button.active {
-  background-color: #1f2937;
+  background-color: #0d9488;
   color: #ffffff;
-  border-color: #1f2937;
+  border-color: #0d9488;
   box-shadow: none;
 }
 
 .tab-button.active:hover {
-  background-color: #000000;
+  background-color: #0f766e;
 }
 
 .button-container {
@@ -205,31 +243,42 @@ h1 {
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
 }
 
-/* Action Buttons (Tertiary) */
+/* Action Buttons (Tertiary — 底部列)：保留藍色系（編輯器焦點框是藍的） */
 #copy-button,
-#save-md-button,
-#hackmd-open-button,
-#hackmd-save-button {
-  background-color: #eff6ff; /* Light blue */
-  color: #3b82f6; /* Accent blue */
-  border: 1px solid #dbeafe;
+#save-md-button {
+  background-color: #f0fdfa; /* Teal tint */
+  color: #0f766e; /* Teal-700 */
+  border: 1px solid #ccfbf1;
 }
 #copy-button:hover,
-#save-md-button:hover,
-#hackmd-open-button:hover,
-#hackmd-save-button:hover {
-  background-color: #dbeafe;
-  border-color: #bfdbfe;
+#save-md-button:hover {
+  background-color: #ccfbf1;
+  border-color: #99f6e4;
 }
 
-/* Secondary / Ghost Buttons */
+/* Primary actions (頂部列 HackMD)：實面青綠——呼應 logo 的「青」，
+   淺色模式下層級清楚：實面=主要動作，描邊=次要 (主人 2026-09-25 第2輪#1) */
+#hackmd-open-button,
+#hackmd-save-button {
+  background-color: #0d9488; /* teal-600，比 logo 深一階確保白字對比 */
+  color: #ffffff;
+  border: 1px solid #0d9488;
+}
+#hackmd-open-button:hover,
+#hackmd-save-button:hover {
+  background-color: #0f766e; /* teal-700 */
+  border-color: #0f766e;
+  box-shadow: 0 4px 10px rgba(13, 148, 136, 0.25);
+}
+
+/* Secondary / Ghost Buttons：白底灰字，hover 轉青綠（全站唯一強調色） */
 #zoom-in-button,
 #zoom-out-button,
 #description-button,
 #immersive-toggle-button,
 #theme-toggle-button {
   background-color: #ffffff;
-  color: #374151;
+  color: #4b5563;
   border: 1px solid #d1d5db;
 }
 #zoom-in-button:hover,
@@ -237,8 +286,9 @@ h1 {
 #description-button:hover,
 #immersive-toggle-button:hover,
 #theme-toggle-button:hover {
-  background-color: #f9fafb; /* very light gray */
-  border-color: #9ca3af;
+  background-color: #f0fdfa; /* teal-50 */
+  color: #0f766e;
+  border-color: #5eead4;
 }
 
 /* Resetting specific positionings from original layout */
@@ -358,7 +408,7 @@ body.dark-mode #mode-indicator {
 body.dark-mode #copy-button,
 body.dark-mode #save-md-button,
 body.dark-mode #hackmd-open-button,
-#hackmd-save-button {
+body.dark-mode #hackmd-save-button {
   background-color: transparent;
   color: #22d3ee;
   border: 1px solid #22d3ee;
@@ -367,7 +417,7 @@ body.dark-mode #hackmd-open-button,
 body.dark-mode #copy-button:hover,
 body.dark-mode #save-md-button:hover,
 body.dark-mode #hackmd-open-button:hover,
-#hackmd-save-button:hover {
+body.dark-mode #hackmd-save-button:hover {
   background-color: rgba(34, 211, 238, 0.1);
   box-shadow: 0 0 8px rgba(34, 211, 238, 0.6);
 }
@@ -493,8 +543,8 @@ body.immersive-mode .button-container.expanded > button {
 /* --- Boshiamy Mode Colors --- */
 /* Light Theme */
 body:not(.dark-mode) .mode-text.boshiamy {
-  background-color: #e0eafc; /* Light, friendly blue */
-  color: #1c59b8; /* Dark, readable blue */
+  background-color: #ccfbf1; /* Teal-100，與全站青綠強調同系 */
+  color: #0f766e; /* Teal-700 */
 }
 /* Dark Theme */
 body.dark-mode .mode-text.boshiamy {
@@ -703,8 +753,8 @@ body.immersive-mode footer {
 #hackmd-save-modal input:focus,
 #hackmd-save-modal textarea:focus {
   outline: none;
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 1px #3b82f6;
+  border-color: #0d9488;
+  box-shadow: 0 0 0 1px #0d9488;
 }
 
 /* Token 輸入＋儲存鈕同一列 */
@@ -727,14 +777,14 @@ body.immersive-mode footer {
   border-radius: 0.5rem;
   cursor: pointer;
   transition: all 0.2s ease-in-out;
-  border: 1px solid #dbeafe;
-  background-color: #eff6ff;
-  color: #3b82f6;
+  border: 1px solid #ccfbf1;
+  background-color: #f0fdfa;
+  color: #0f766e;
 }
 
 .hackmd-token-line button:hover {
-  background-color: #dbeafe;
-  border-color: #bfdbfe;
+  background-color: #ccfbf1;
+  border-color: #99f6e4;
 }
 
 .hackmd-remember {
@@ -774,9 +824,9 @@ body.immersive-mode footer {
 }
 
 .hackmd-buttons #hackmd-save-submit {
-  background-color: #eff6ff;
-  color: #3b82f6;
-  border: 1px solid #dbeafe;
+  background-color: #f0fdfa;
+  color: #0f766e;
+  border: 1px solid #ccfbf1;
 }
 
 .hackmd-buttons #hackmd-save-submit:hover {
@@ -849,8 +899,8 @@ body.immersive-mode footer {
 }
 
 .hackmd-note-item:hover {
-  border-color: #3b82f6;
-  background-color: #eff6ff;
+  border-color: #5eead4;
+  background-color: #f0fdfa;
 }
 
 .hackmd-note-title {
@@ -878,7 +928,7 @@ body.immersive-mode footer {
 #hackmd-save-bound-note {
   margin: 0 0 8px;
   font-size: 0.9rem;
-  color: #3b82f6;
+  color: #0f766e;
   font-weight: 500;
   display: none;
 }
@@ -1033,7 +1083,7 @@ body.dark-mode #hackmd-save-bound-note {
 }
 
 #preview-pane a {
-  color: #3b82f6;
+  color: #0d9488;
 }
 
 #preview-pane hr {

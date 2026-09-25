@@ -40,6 +40,7 @@ const logoImage = logoContainer.querySelector("img");
 const modeTextEl = document.getElementById("mode-text");
 const fontSizeIndicatorEl = document.getElementById("font-size-indicator");
 const previewPane = document.getElementById("preview-pane");
+const viewModePill = document.getElementById("view-mode-pill");
 const descriptionButton = document.getElementById("description-button");
 const toastEl = document.getElementById("toast");
 
@@ -176,6 +177,15 @@ modeIndicator.addEventListener("keydown", (e) => {
   }
 });
 logoContainer.addEventListener("click", toggleDisabledMode);
+if (viewModePill) {
+  viewModePill.addEventListener("click", togglePreview);
+  viewModePill.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      togglePreview();
+    }
+  });
+}
 
 // --- THEME ---
 function applyTheme(theme) {
@@ -326,6 +336,11 @@ async function refreshPreview() {
 function setPreview(active) {
   previewActive = active;
   editor.clearIme();
+  // 狀態膠囊永遠告訴主人現在是「編輯」還是「預覽」（第2輪#2）
+  if (viewModePill) {
+    viewModePill.textContent = active ? "預覽" : "編輯";
+    viewModePill.classList.toggle("preview", active);
+  }
   if (active) {
     refreshPreview();
     previewPane.hidden = false;

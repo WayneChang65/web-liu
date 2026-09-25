@@ -29,6 +29,17 @@ export function renderMarkdownToHtml(markdown) {
 // Diagram/script block languages HackMD renders but liu cannot round-trip.
 const DIAGRAM_LANGS = /^(mermaid|plantuml|wavedrom|vega|vega-lite|flowchart|sequence|math|latex)$/i;
 
+// HTML tags the PREVIEW renders (mirrors preview.js PREVIEW_ALLOWED minus the
+// DROP blacklist). Notes using only these no longer trip the D7 open warning.
+const PREVIEW_SAFE_HTML_TAGS = new Set([
+  "strong", "em", "u", "del", "s", "strike", "code", "pre", "br", "hr", "p",
+  "h1", "h2", "h3", "h4", "h5", "h6", "ul", "ol", "li", "blockquote", "a",
+  "table", "thead", "tbody", "tr", "th", "td", "div", "span", "sup", "sub",
+  "font", "big", "small", "tt", "mark", "kbd", "details", "summary",
+  "figure", "figcaption", "caption", "dl", "dt", "dd",
+  "article", "section", "header", "footer", "wbr", "b", "i",
+]);
+
 // Raw-regex checks for syntax that marked may silently pass through as text.
 const RAW_PATTERNS = [
   {
@@ -72,11 +83,19 @@ export function detectUnsupportedSyntax(markdown) {
         case "checkbox":
           found.add("任務清單（- [ ]）");
           break;
-        case "html":
-          if (/<[a-z!/]/i.test(token.raw || token.text || "")) {
-            found.add("HTML 原生標籤");
-          }
+        case "html": {
+          // 第2輪#3 (主人 2026-09-25): 預覽已支援安全 HTML 子集（font/span/mark
+          // 等視覺標籤＋受過濾的 color/style 屬性）——只有預覽真的不渲染的
+          // 標籤（img/iframe/svg/form/button…）才繼續警示。
+          const raw = token.raw || token.text || "";
+          const tags = raw.match(/<\/?([a-zA-Z][a-zA-Z0-9]*)/g) || [];
+          const unsupported = tags.some((t) => {
+            const tag = t.replace(/^<\/?/, "").toLowerCase();
+            return !PREVIEW_SAFE_HTML_TAGS.has(tag);
+          });
+          if (unsupported) found.add("HTML 原生標籤");
           break;
+        }
         case "list_item":
           // Older/newer marked versions flag task items on the item itself.
           if (typeof token.checked === "boolean") {

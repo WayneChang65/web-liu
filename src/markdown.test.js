@@ -110,7 +110,7 @@ describe("detectUnsupportedSyntax (D7)", () => {
     ["task list", "- [ ] 待辦\n- [x] 完成", "任務清單"],
     ["inline math", "質能方程式 $E=mc^2$ 很有名", "數學式"],
     ["hackmd alert", "> [!NOTE]\n> 注意", "提示區塊"],
-    ["raw html", "<div class=\"x\">原始</div>", "HTML"],
+    ["unsafe raw html", '<img src="a.png"><button>按</button>', "HTML"],
   ];
   for (const [name, md, expectLabel] of flagged) {
     it(`blocks ${name}`, () => {
@@ -119,6 +119,11 @@ describe("detectUnsupportedSyntax (D7)", () => {
       expect(issues.join(",")).toContain(expectLabel);
     });
   }
+
+  it("no longer flags preview-safe HTML (第2輪#3: font/span colours OK)", () => {
+    const md = '紅 <font color="#e74c3c">色字</font> 與 <span style="color:blue">藍</span>';
+    expect(detectUnsupportedSyntax(md)).toEqual([]);
+  });
 
   it("flags multiple syntax families at once", () => {
     const md = "| a |\n|---|\n| 1 |\n\n```js\nx\n```";
