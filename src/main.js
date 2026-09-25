@@ -30,8 +30,6 @@ const immersiveToggleButton = document.getElementById(
 const zoomInButton = document.getElementById("zoom-in-button");
 const zoomOutButton = document.getElementById("zoom-out-button");
 const saveMdButton = document.getElementById("save-md-button");
-const restoreButton = document.getElementById("restore-button");
-const saveTempButton = document.getElementById("save-temp-button");
 const buttonContainer = document.querySelector(".button-container");
 const buttonToggle = document.getElementById("button-toggle");
 const editorTabs = document.getElementById("editor-tabs");
@@ -42,7 +40,6 @@ const logoImage = logoContainer.querySelector("img");
 const modeTextEl = document.getElementById("mode-text");
 const fontSizeIndicatorEl = document.getElementById("font-size-indicator");
 const previewPane = document.getElementById("preview-pane");
-const previewToggleButton = document.getElementById("preview-toggle-button");
 const descriptionButton = document.getElementById("description-button");
 const toastEl = document.getElementById("toast");
 
@@ -265,6 +262,9 @@ let zoomInterval = null;
 
 function updateFontSize() {
   editor.setFontSize(currentFontSize);
+  // item 2 (主人 2026-09-25): 放大/縮小 must work in preview mode too —
+  // preview base is 1.05rem against the editor's 1.2rem, keep that ratio.
+  previewPane.style.fontSize = `${Math.round(currentFontSize * 0.875 * 100) / 100}rem`;
   safeSetItem("boshiamy-font-size", currentFontSize);
   updateModeIndicator();
 }
@@ -330,12 +330,10 @@ function setPreview(active) {
     refreshPreview();
     previewPane.hidden = false;
     editor.getWrapper().style.display = "none";
-    previewToggleButton.textContent = "編輯 (Ctrl+Enter)";
   } else {
     previewPane.hidden = true;
     editor.getWrapper().style.display = "";
     editor.focus();
-    previewToggleButton.textContent = "預覽 (Ctrl+Enter)";
   }
 }
 
@@ -349,17 +347,13 @@ function schedulePreviewRefresh() {
   previewTimer = setTimeout(refreshPreview, 300);
 }
 
-previewToggleButton.addEventListener("click", () => {
-  togglePreview();
-  topButtonContainer.classList.remove("expanded");
-});
-
 // Document-level keys, handled at CAPTURE phase before CodeMirror sees them:
-//  - Ctrl+Enter to LEAVE preview (in preview, CM is hidden; entering preview
-//    goes through the CM keymap instead — see editor.js deps.enterPreview).
-//  - D24 zoom keys: Ctrl+[ / Ctrl+] (±0.1), Ctrl+9 (90%), Ctrl+0 (100%).
-//    Capture + preventDefault also neutralises CM's built-in Ctrl-[/] indent
-//    bindings so the muscle memory stays 1:1 with the old build.
+//  - Ctrl+Shift+M toggles preview in BOTH directions (item 3, 主人 2026-09-25:
+//    Ctrl+Enter was intercepted by other functions → new combo, M = Markdown).
+//  - D24 zoom keys (item 2 semantics restored): Ctrl+] / Ctrl+Shift+> / Ctrl+0
+//    zoom IN, Ctrl+[ / Ctrl+Shift+< / Ctrl+9 zoom OUT — same directions as the
+//    contenteditable build. Capture + preventDefault also neutralises CM's
+//    built-in Ctrl-[/] indent bindings so muscle memory is 1:1.
 document.addEventListener(
   "keydown",
   (e) => {
@@ -375,30 +369,19 @@ document.addEventListener(
     ) {
       return;
     }
-    if (previewActive && (e.key === "Enter" || e.key === "NumpadEnter")) {
+    if (e.code === "KeyM" && e.shiftKey) {
       e.preventDefault();
       togglePreview();
       return;
     }
-    switch (e.key) {
-      case "[":
-        e.preventDefault();
-        zoomIn();
-        break;
-      case "]":
-        e.preventDefault();
-        zoomOut();
-        break;
-      case "9":
-        e.preventDefault();
-        currentFontSize = 0.9;
-        updateFontSize();
-        break;
-      case "0":
-        e.preventDefault();
-        currentFontSize = 1;
-        updateFontSize();
-        break;
+    const zoomOutKeys = ["[", "<", "9"];
+    const zoomInKeys = ["]", ">", "0"];
+    if (zoomOutKeys.includes(e.key)) {
+      e.preventDefault();
+      zoomOut();
+    } else if (zoomInKeys.includes(e.key)) {
+      e.preventDefault();
+      zoomIn();
     }
   },
   true, // capture
@@ -432,16 +415,29 @@ const editor = initEditor({
   toggleImeMode,
   saveHackmd: () => hackmdSaveApi.open(),
   togglePreview,
-  onDocChange: schedulePreviewRefresh,
+  onDocChange: () => {
+    schedulePreviewRefresh();
+    scheduleDraftSave();
+  },
 });
 
-function updateRestoreButtonState() {
-  const hasSavedContent = !!(
-    localStorage.getItem(storageKey(currentEditorId)) ||
-    localStorage.getItem(legacyStorageKey(currentEditorId))
-  );
-  restoreButton.disabled = !hasSavedContent;
+// --- item 1 (主人 2026-09-25): the manual 存入/讀回暫存 buttons are gone.
+// Drafts now AUTOSAVE: every edit writes the tab's draft (debounced), tab
+// switches and page hide flush immediately. Content can no longer be lost
+// by forgetting to press a button.
+let draftSaveTimer = null;
+function flushDraft() {
+  safeSetItem(storageKey(currentEditorId), editor.getValue());
+  localStorage.removeItem(legacyStorageKey(currentEditorId));
 }
+function scheduleDraftSave() {
+  clearTimeout(draftSaveTimer);
+  draftSaveTimer = setTimeout(flushDraft, 500);
+}
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "hidden") flushDraft();
+});
+window.addEventListener("pagehide", flushDraft);
 
 // Doc-per-tab: CM Docs are full documents (cursor/undo included), so tab
 // switching just swaps the Doc — no serialization round-trip.
@@ -449,12 +445,12 @@ const tabDocs = { 1: null, 2: null, 3: null };
 
 function showTab(newId) {
   if (newId === currentEditorId) return;
+  flushDraft(); // persist the tab we are leaving while its doc is still live
   tabDocs[currentEditorId] = editor.detachDoc();
   currentEditorId = newId;
   safeSetItem("boshiamy-active-tab", newId);
   if (!tabDocs[newId]) tabDocs[newId] = makeDoc(loadTabDraft(newId));
   editor.swapDoc(tabDocs[newId]);
-  updateRestoreButtonState();
   updateHackmdTabBadges();
   if (previewActive) refreshPreview();
 }
@@ -469,37 +465,6 @@ editorTabs.addEventListener("click", (e) => {
   target.classList.add("active");
   showTab(newId);
   editor.focus();
-});
-
-// --- SAVE TEMP / RESTORE (markdown-native) ---
-saveTempButton.addEventListener("click", () => {
-  const md = editor.getValue();
-  const saved = safeSetItem(storageKey(currentEditorId), md);
-  if (saved) {
-    localStorage.removeItem(legacyStorageKey(currentEditorId));
-    updateRestoreButtonState();
-  }
-  const originalText = saveTempButton.textContent;
-  saveTempButton.textContent = saved ? "已存入！" : "暫存失敗";
-  setTimeout(() => {
-    saveTempButton.textContent = originalText;
-  }, 2000);
-  topButtonContainer.classList.remove("expanded");
-});
-
-restoreButton.addEventListener("click", () => {
-  let md = localStorage.getItem(storageKey(currentEditorId));
-  if (md === null) md = migrateLegacyDraft(currentEditorId);
-  if (md !== null) {
-    editor.setValue(md);
-    const originalText = restoreButton.textContent;
-    restoreButton.textContent = "已讀回！";
-    setTimeout(() => {
-      restoreButton.textContent = originalText;
-    }, 2000);
-    if (previewActive) refreshPreview();
-  }
-  topButtonContainer.classList.remove("expanded");
 });
 
 // --- COPY / EXPORT (source is markdown already) ---
@@ -532,23 +497,16 @@ saveMdButton.addEventListener("click", () => {
 });
 
 // --- DESCRIPTION PAGE NAV (temp-save first, same UX as before) ---
+// Autosave makes the round-trip safe: flush, go, no confirm dialog.
 descriptionButton.addEventListener("click", (e) => {
   e.preventDefault();
-  const shouldSave = confirm(
-    "是否暫存目前編輯區的資料，否則等會回來，可能會遺失？\n\n按「確定」存入暫存並前往說明頁。\n按「取消」不暫存直接前往說明頁。",
-  );
-  if (shouldSave) {
-    safeSetItem(storageKey(currentEditorId), editor.getValue());
-    localStorage.removeItem(legacyStorageKey(currentEditorId));
-    updateRestoreButtonState();
-  }
+  flushDraft();
   window.location.assign("description.html");
 });
 
-const urlParams = new URLSearchParams(window.location.search);
-if (urlParams.get("action") === "restore") {
-  const md = loadTabDraft(currentEditorId);
-  editor.swapDoc(makeDoc(md));
+// (description.html back-link used to carry ?action=restore; with autosave the
+// draft is already loaded at mount, so we just clean the URL when present.)
+if (new URLSearchParams(window.location.search).get("action") === "restore") {
   history.replaceState(null, "", window.location.pathname);
 }
 
@@ -566,12 +524,7 @@ const hackmdSaveApi = initHackmdSave({
 initHackmdBrowser({
   showToast,
   editorHasContent: () => editor.hasContent(),
-  saveTempBeforeOpen: () => {
-    if (safeSetItem(storageKey(currentEditorId), editor.getValue())) {
-      localStorage.removeItem(legacyStorageKey(currentEditorId));
-      updateRestoreButtonState();
-    }
-  },
+  saveTempBeforeOpen: () => flushDraft(),
   onOpenNote: ({ noteId, title, markdown }) => {
     editor.setValue(markdown);
     hackmdBindings[currentEditorId] = { noteId, title };
@@ -594,6 +547,5 @@ if (currentEditorId !== 1) {
 updateModeIndicator();
 updateLogoState();
 updateFontSize();
-updateRestoreButtonState();
 updateHackmdTabBadges();
 editor.focus();

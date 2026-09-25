@@ -177,13 +177,10 @@ h1 {
 #zoom-in-button,
 #zoom-out-button,
 #save-md-button,
-#restore-button,
-#save-temp-button,
 #description-button,
 #immersive-toggle-button,
 #hackmd-open-button,
 #hackmd-save-button,
-#preview-toggle-button,
 #theme-toggle-button {
   padding: 8px 15px;
   font-size: 0.9rem;
@@ -199,13 +196,10 @@ h1 {
 #zoom-in-button:hover,
 #zoom-out-button:hover,
 #save-md-button:hover,
-#restore-button:hover,
-#save-temp-button:hover,
 #description-button:hover,
 #immersive-toggle-button:hover,
 #hackmd-open-button:hover,
 #hackmd-save-button:hover,
-#preview-toggle-button:hover,
 #theme-toggle-button:hover {
   transform: translateY(-1px);
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
@@ -214,22 +208,16 @@ h1 {
 /* Action Buttons (Tertiary) */
 #copy-button,
 #save-md-button,
-#restore-button,
 #hackmd-open-button,
-#hackmd-save-button,
-#preview-toggle-button,
-#save-temp-button {
+#hackmd-save-button {
   background-color: #eff6ff; /* Light blue */
   color: #3b82f6; /* Accent blue */
   border: 1px solid #dbeafe;
 }
 #copy-button:hover,
 #save-md-button:hover,
-#restore-button:hover,
 #hackmd-open-button:hover,
-#hackmd-save-button:hover,
-#preview-toggle-button:hover,
-#save-temp-button:hover {
+#hackmd-save-button:hover {
   background-color: #dbeafe;
   border-color: #bfdbfe;
 }
@@ -302,10 +290,6 @@ body.dark-mode .version-text {
   right: 130px;
 }
 
-#restore-button {
-  left: 80px;
-}
-
 /* Dark Mode Styles (Tech Theme) */
 body.dark-mode {
   background-color: #000000;
@@ -373,10 +357,8 @@ body.dark-mode #mode-indicator {
 /* Action Buttons (Glowing Outline) */
 body.dark-mode #copy-button,
 body.dark-mode #save-md-button,
-body.dark-mode #restore-button,
 body.dark-mode #hackmd-open-button,
-#hackmd-save-button,
-body.dark-mode #save-temp-button {
+#hackmd-save-button {
   background-color: transparent;
   color: #22d3ee;
   border: 1px solid #22d3ee;
@@ -384,10 +366,8 @@ body.dark-mode #save-temp-button {
 }
 body.dark-mode #copy-button:hover,
 body.dark-mode #save-md-button:hover,
-body.dark-mode #restore-button:hover,
 body.dark-mode #hackmd-open-button:hover,
-#hackmd-save-button:hover,
-body.dark-mode #save-temp-button:hover {
+#hackmd-save-button:hover {
   background-color: rgba(34, 211, 238, 0.1);
   box-shadow: 0 0 8px rgba(34, 211, 238, 0.6);
 }
@@ -544,13 +524,6 @@ body:not(.dark-mode) .mode-text.disabled {
 body.dark-mode .mode-text.disabled {
   background-color: #7f1d1d; /* Dark red */
   color: #fecaca; /* Light red */
-}
-
-#restore-button:disabled,
-#save-temp-button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-  pointer-events: none; /* Prevents hover effects */
 }
 
 #top-button-container {
@@ -923,9 +896,14 @@ body.immersive-mode footer {
   height: 6px;
   border-radius: 50%;
   background-color: #3b82f6;
+  /* item 6 (主人 2026-09-25): contrasting ring so the dot never vanishes
+     into the button's own blue background */
+  border: 1.5px solid #ffffff;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.25);
 }
 body.dark-mode .tab-button.hackmd-bound::after {
   background-color: #22d3ee;
+  border-color: #000000;
 }
 
 /* --- 深色模式：HackMD 對話框 --- */

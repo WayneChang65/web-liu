@@ -35,7 +35,7 @@ const PAGE_SIZE = 10;
  *   getImeMode()        -> "boshiamy" | "english" | "disabled"
  *   toggleImeMode()     -> Ctrl+P (app-level: indicator/logo/storage)
  *   saveHackmd()        -> Ctrl+S
- *   togglePreview()     -> Ctrl+Enter
+ *   (preview toggle: Ctrl+Shift+M, handled document-level in main.js)
  * Returns the editor API.
  */
 export function initEditor(deps) {
@@ -109,13 +109,34 @@ export function initEditor(deps) {
     if (top + barH > wrap.clientHeight && coords.top - wrapRect.top > barH + 8) {
       top = coords.top - wrapRect.top - barH - 4;
     }
-    let left = coords.left - wrapRect.left;
-    const maxLeft = Math.max(4, wrap.clientWidth - imeBar.offsetWidth - 8);
-    left = Math.min(Math.max(left, 4), maxLeft);
-
     imeBar.style.top = `${Math.max(0, top)}px`;
-    imeBar.style.left = `${left}px`;
-    imeBar.style.right = "auto";
+
+    // Horizontal: which half of the SCREEN the caret sits in decides the side
+    // (old contenteditable behavior, item 7 主人 2026-09-25): caret left of
+    // the viewport midline -> bar to its right; caret right of midline -> bar
+    // anchored by its right edge so it appears to the LEFT of the caret.
+    const viewMid = window.innerWidth / 2;
+    if (coords.left < viewMid) {
+      imeBar.style.right = "auto";
+      imeBar.style.left = `${coords.left - wrapRect.left}px`;
+    } else {
+      imeBar.style.left = "auto";
+      imeBar.style.right = `${wrapRect.right - coords.right}px`;
+    }
+
+    // one frame later the bar has real dimensions: clamp to stay inside the
+    // editor box (old behavior's final boundary pass).
+    requestAnimationFrame(() => {
+      const r = imeBar.getBoundingClientRect();
+      if (r.right > wrapRect.right - 5) {
+        imeBar.style.left = "auto";
+        imeBar.style.right = "5px";
+      }
+      if (r.left < wrapRect.left + 5) {
+        imeBar.style.right = "auto";
+        imeBar.style.left = "5px";
+      }
+    });
   }
 
   // --- the interceptor (validated in the M0 lab) ---
@@ -255,7 +276,5 @@ function buildKeymap(deps) {
     "Cmd-P": () => deps.toggleImeMode(),
     "Ctrl-S": () => deps.saveHackmd(),
     "Cmd-S": () => deps.saveHackmd(),
-    "Ctrl-Enter": () => deps.togglePreview(),
-    "Cmd-Enter": () => deps.togglePreview(),
   };
 }

@@ -87,7 +87,7 @@
         <div class="container">
             <div class="header-bar">
                 <img src="/img/favicon.png" alt="Logo" />
-                <a href="index.html?action=restore" class="back-link"
+                <a href="index.html" class="back-link"
                     >&larr; 返回編輯器</a
                 >
             </div>
@@ -96,43 +96,41 @@
             <h3>快捷鍵</h3>
             <ul>
                 <li><strong>切換輸入法:</strong> Ctrl + p</li>
-                <li><strong>粗體:</strong> Ctrl + b</li>
-                <li><strong>斜體:</strong> Ctrl + i</li>
-                <li><strong>底線:</strong> Ctrl + u</li>
+                <li><strong>粗體:</strong> Ctrl + b　<strong>斜體:</strong> Ctrl + i</li>
+                <li><strong>標題 1/2/3:</strong> Ctrl + 1 / 2 / 3</li>
+                <li><strong>連結:</strong> Ctrl + k　<strong>清單:</strong> Ctrl + l</li>
+                <li><strong>程式碼塊:</strong> Ctrl + Shift + k　<strong>引用:</strong> Ctrl + Shift + q</li>
+                <li><strong>預覽/回編輯（Markdown 渲染）:</strong> Ctrl + Shift + m</li>
                 <li>
-                    <strong>放大選取文字:</strong> Ctrl + ], Ctrl + Shift +
+                    <strong>放大編輯區整體字級:</strong> Ctrl + ], Ctrl + Shift +
                     &gt;, 或 Ctrl + 0
                 </li>
                 <li>
-                    <strong>縮小選取文字:</strong> Ctrl + [, Ctrl + Shift +
+                    <strong>縮小編輯區整體字級:</strong> Ctrl + [, Ctrl + Shift +
                     &lt;, 或 Ctrl + 9
                 </li>
+                <li><strong>存入 HackMD:</strong> Ctrl + s</li>
             </ul>
 
-            <h3>匯出功能</h3>
+            <h3>編輯模式與匯出</h3>
             <p>
-                點擊「匯出」按鈕可以將編輯區的內容轉換為 Markdown
-                格式並下載。此功能會保留以下格式：
+                編輯區為 Markdown <strong>源碼模式</strong>：你看到的就是
+                <code># 標題</code>、<code>**粗體**</code>
+                這般的原始語法（附語法高亮）。按 Ctrl + Shift + m
+                進入整頁預覽，表格、程式碼、數學式（KaTeX）、mermaid
+                圖表都會完整渲染；再按一次回編輯。
             </p>
-            <ul>
-                <li>粗體</li>
-                <li>斜體</li>
-                <li>底線 (以 HTML <code>&lt;u&gt;</code> 標籤保留)</li>
-                <li>
-                    自訂字級大小 (以 HTML <code>&lt;span&gt;</code> 標籤保留)
-                </li>
-            </ul>
+            <p>
+                點擊「匯出」下載的就是編輯區裡的 Markdown
+                原始檔；「複製」同理複製源碼文字。
+            </p>
 
-            <h3>暫存功能</h3>
+            <h3>自動存稿</h3>
             <ul>
                 <li>
-                    <strong>存入暫存:</strong>
-                    點擊「存入暫存」按鈕可以手動將目前編輯區的內容儲存於瀏覽器中。
+                    編輯內容會<strong>自動存入瀏覽器</strong>（輸入後約半秒、切換分頁、或離開頁面時立即保存），重新開啟頁面即自動載回，不必再按任何按鈕。
                 </li>
-                <li>
-                    <strong>讀回暫存:</strong>
-                    點擊「讀回暫存」按鈕可以恢復上次手動儲存的編輯內容。若無暫存資料，「讀回暫存」按鈕將會禁用。
-                </li>
+                <li>每個分頁（1/2/3）各自獨立保存。</li>
             </ul>
 
             <h3>HackMD 整合</h3>
@@ -140,8 +138,9 @@
                 <li>
                     <strong>開啟HackMD:</strong>
                     彈出檔案總管，列出你 HackMD
-                    裡最近的筆記（按最後更新排序、可搜尋標題）。點選筆記會以其
-                    Markdown 內容渲染成編輯區格式；開啟前會先確認是否暫存目前內容。
+                    裡最近的筆記（按最後更新排序、可搜尋標題）。點選筆記會以
+                    Markdown <strong>原始源碼</strong>
+                    載入編輯區（內容一字不改）；編輯區已有內容時會先請你確認。
                 </li>
                 <li>
                     <strong>存入HackMD:</strong>
@@ -155,8 +154,8 @@
                     會儲存在瀏覽器本機，下次不用再貼。
                 </li>
                 <li>
-                    <strong>不支援的語法:</strong>
-                    含有表格、程式碼塊、mermaid、數學式、圖片等語法的筆記在開啟時會示警並預設擋下（可手動強制開啟），避免存回時損毀這些區塊。
+                    <strong>HackMD 特殊語法:</strong>
+                    源碼模式下編輯與存回都<strong>不會損毀</strong>任何語法；若筆記含有本站預覽無法呈現的 HackMD 專屬語法（如 container），開啟時會提示知悉。
                 </li>
                 <li>
                     <strong>分頁綁定:</strong>
@@ -171,7 +170,7 @@
                     點擊上方的 1, 2, 3
                     數字按鈕，可以在三個獨立的編輯區之間切換。
                 </li>
-                <li>每個編輯區都有各自獨立的內容與暫存功能，互不干擾。</li>
+                <li>每個編輯區都有各自獨立的內容、游標位置與自動存稿，互不干擾。</li>
             </ul>
 
             <h3>模式切換</h3>
