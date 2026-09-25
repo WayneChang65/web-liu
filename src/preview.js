@@ -72,6 +72,7 @@ const SAFE_COLOR = /^[#0-9a-zA-Z,]{1,60}$/;
 function keepAttribute(tag, name, value) {
   if (name === "href") return tag === "A";
   if (name === "color") return tag === "FONT" && SAFE_COLOR.test(value || "");
+  if (name === "size") return tag === "FONT" && /^[1-7]$/.test((value || "").trim());
   if (name === "class") return true;
   // style 放行（KaTeX/顏色需要），但攔掉 CSS 執行向量：expression()、
   // -moz-binding、behavior、url() —— 現代瀏覽器基本不吃，但零成本 Defense-in-depth。

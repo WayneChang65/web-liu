@@ -256,19 +256,21 @@ body.dark-mode .view-pill.preview {
   border-color: #99f6e4;
 }
 
-/* Primary actions (頂部列 HackMD)：實面青綠——呼應 logo 的「青」，
-   淺色模式下層級清楚：實面=主要動作，描邊=次要 (主人 2026-09-25 第2輪#1) */
+/* Primary actions (頂部列 HackMD)：描邊發光式——比照深色模式的原則
+   （背景透、青綠邊、青綠字＋微光暈），淺色用 teal 色盤 (主人 2026-09-25
+   第3輪#2：不要綠底白字，參考深色模式樣板) */
 #hackmd-open-button,
 #hackmd-save-button {
-  background-color: #0d9488; /* teal-600，比 logo 深一階確保白字對比 */
-  color: #ffffff;
-  border: 1px solid #0d9488;
+  background-color: #f0fdfa; /* 極淺青白底（主人附圖） */
+  color: #0f766e; /* 深青字 teal-700 */
+  border: 1px solid #5eead4; /* 淺青框 teal-300 */
+  box-shadow: 0 0 3px rgba(13, 148, 136, 0.15);
 }
 #hackmd-open-button:hover,
 #hackmd-save-button:hover {
-  background-color: #0f766e; /* teal-700 */
-  border-color: #0f766e;
-  box-shadow: 0 4px 10px rgba(13, 148, 136, 0.25);
+  background-color: #ccfbf1; /* teal-100 */
+  border-color: #2dd4bf; /* teal-400 */
+  box-shadow: 0 0 8px rgba(13, 148, 136, 0.3);
 }
 
 /* Secondary / Ghost Buttons：白底灰字，hover 轉青綠（全站唯一強調色） */
