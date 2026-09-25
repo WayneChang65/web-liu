@@ -38,10 +38,34 @@ export async function hydrateMermaidBlocks(root) {
     const code = el.getAttribute("data-mermaid") || "";
     try {
       const { svg } = await mermaid.render(`mmd-${++seq}`, code);
+      // Size the iframe from the SVG's viewBox so the whole diagram fits
+      // (srcdoc iframes are opaque-origin — we cannot measure inside, so we
+      // compute from the SVG source mermaid just produced).
+      let h = 0;
+      try {
+        const raw = String(svg)
+          .replace(/^<div[^>]*>/, "")
+          .replace(/<\/div>\s*$/, "");
+        const doc = new DOMParser().parseFromString(raw, "image/svg+xml");
+        const svgEl = doc.querySelector("svg") || doc.documentElement;
+        const vb = (svgEl.getAttribute && svgEl.getAttribute("viewBox")) || "";
+        const parts = vb.trim().split(/[\s,]+/).map(Number);
+        if (parts.length === 4 && parts[2] > 0 && parts[3] > 0) {
+          // mermaid caps display width via style="max-width:Npx"; respect it
+          const styleMw = /max-width:\s*(\d+(?:\.\d+)?)px/.exec(String(svg));
+          const naturalW = styleMw ? Number(styleMw[1]) : parts[2];
+          const containerW = el.clientWidth || root.clientWidth || 520;
+          const w = Math.min(containerW, naturalW);
+          h = Math.min(640, Math.max(120, Math.ceil((w * parts[3]) / parts[2]) + 12));
+        }
+      } catch {
+        /* fall back to CSS min-height */
+      }
       const frame = document.createElement("iframe");
       frame.setAttribute("sandbox", ""); // no scripts, opaque origin
       frame.setAttribute("title", "mermaid 圖表");
       frame.className = "mermaid-frame";
+      if (h) frame.style.height = `${h}px`;
       frame.srcdoc = `<!doctype html><html><head><meta charset="utf-8">
 <style>html,body{margin:0;padding:4px;background:transparent;overflow:hidden}
 svg{max-width:100%;height:auto}</style></head><body>${svg}</body></html>`;
