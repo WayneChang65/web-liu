@@ -45,7 +45,9 @@ export function initEditor(deps) {
   const candidateListSpan = document.getElementById("candidate-list");
 
   const cm = CodeMirror(mount, {
-    mode: { name: "markdown", fencedCodeBlocks: true },
+    // xml:false — HTML 標籤在編輯區以統一純文字顯示（主人 2026-09-25 第3輪#1：
+    // 編輯模式不要顏色、直接看原始碼；色彩渲染只屬於預覽模式）。
+    mode: { name: "markdown", fencedCodeBlocks: true, xml: false },
     lineWrapping: true,
     placeholder: "開始打字...",
     spellcheck: false,
